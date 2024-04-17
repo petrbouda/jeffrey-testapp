@@ -1,4 +1,4 @@
-# CGROUPS with JAVA
+# Jeffrey - Test App to generate JFR Recordings
 
 #### Setup
 - `sudo ln -s /run/user/1000/podman/podman.sock /var/run/docker.sock`
