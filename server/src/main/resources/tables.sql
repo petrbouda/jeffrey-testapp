@@ -1,6 +1,6 @@
 CREATE TABLE person
 (
-    id                int PRIMARY KEY,
+    id                SERIAL PRIMARY KEY,
     firstname         varchar(255),
     lastname          varchar(255),
     city              varchar(255),

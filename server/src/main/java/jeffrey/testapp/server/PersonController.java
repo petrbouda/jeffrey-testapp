@@ -24,7 +24,7 @@ public class PersonController {
     @GetMapping
     public Person getRandomPerson() {
         Person person = service.getRandomPerson();
-        LOG.info("Get RandomPerson: id={} firstname={} lastname={}",
+        LOG.info("Get Person: id={} firstname={} lastname={}",
                 person.id(), person.firstname(), person.lastname());
         return person;
     }
@@ -40,10 +40,11 @@ public class PersonController {
         return persons;
     }
 
-    @PostMapping
-    public Person addNewPerson(Person person) {
+    @PostMapping(consumes = "application/json")
+    public Person addNewPerson(@RequestBody Person person) {
         Person addedPerson = repository.insert(person);
-        LOG.info("Added Person: {}", addedPerson);
+        LOG.info("Added Person: id={} firstname={} lastname={}",
+                person.id(), person.firstname(), person.lastname());
         return addedPerson;
     }
 

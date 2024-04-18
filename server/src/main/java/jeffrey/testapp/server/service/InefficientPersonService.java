@@ -1,6 +1,7 @@
 package jeffrey.testapp.server.service;
 
 import jeffrey.testapp.server.Helpers;
+import jeffrey.testapp.server.IDHolder;
 import jeffrey.testapp.server.Person;
 import jeffrey.testapp.server.PersonRepository;
 
@@ -17,15 +18,29 @@ public class InefficientPersonService implements PersonService {
 
     @Override
     public Person getRandomPerson() {
-        Integer latestPersonCount = repository.count();
-        Long personId = Helpers.generateId(latestPersonCount);
-        return repository.findById(personId);
+        int latestPersonCount = repository.count();
+        int personIndex = Helpers.generateId(latestPersonCount);
+        long personId = safeIdLookup(personIndex);
+        return repository.findById(personId)
+                .orElseGet(this::getRandomPerson);
     }
 
     @Override
     public List<Person> getNPersons(int count) {
-        Integer latestPersonCount = repository.count();
-        Collection<Long> ids = Helpers.generateIds(latestPersonCount, count);
-        return repository.findByIds(ids);
+        int latestPersonCount = repository.count();
+        Collection<Integer> indices = Helpers.generateIds(latestPersonCount, count);
+        List<Long> personIds = indices.stream()
+                .map(InefficientPersonService::safeIdLookup)
+                .toList();
+
+        return repository.findByIds(personIds);
+    }
+
+    private static long safeIdLookup(int index) {
+        try {
+            return IDHolder.IDS.get(index);
+        } catch (IndexOutOfBoundsException ex) {
+            return IDHolder.IDS.getLast();
+        }
     }
 }

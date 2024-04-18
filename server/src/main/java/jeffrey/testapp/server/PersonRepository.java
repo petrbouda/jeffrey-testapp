@@ -1,6 +1,8 @@
 package jeffrey.testapp.server;
 
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
@@ -9,6 +11,7 @@ import org.springframework.jdbc.support.GeneratedKeyHolder;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Stream;
 
 public class PersonRepository {
@@ -50,9 +53,15 @@ public class PersonRepository {
      * @param id id of the expected Person entity
      * @return Person entity, or {@code null} if the entity does not exist
      */
-    public Person findById(long id) {
+    public Optional<Person> findById(long id) {
         SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
-        return jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
+
+        try {
+            Person person = jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
+            return Optional.ofNullable(person);
+        } catch (EmptyResultDataAccessException ex) {
+            return Optional.empty();
+        }
     }
 
     /**
@@ -90,6 +99,7 @@ public class PersonRepository {
      * @param id person's ID to delete
      */
     public void remove(long id) {
+        IDHolder.IDS.remove(id);
         jdbcTemplate.update(REMOVE_QUERY_BY_ID, Map.of("id", id));
     }
 
@@ -110,7 +120,9 @@ public class PersonRepository {
 
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
-        return person.copyWithId(keyHolder.getKey().longValue());
+        Long id = (Long) keyHolder.getKeys().get("id");
+        IDHolder.IDS.add(id);
+        return person.copyWithId(id);
     }
 
     /**
@@ -119,7 +131,10 @@ public class PersonRepository {
      * @param statement statement to be executed.
      */
     public void insertRaw(String statement) {
-        jdbcTemplate.update(statement, Map.of());
+        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+        jdbcTemplate.update(statement, new EmptySqlParameterSource(), keyHolder);
+        Long id = (Long) keyHolder.getKeys().get("id");
+        IDHolder.IDS.add(id);
     }
 
     private static RowMapper<Person> personMapper() {

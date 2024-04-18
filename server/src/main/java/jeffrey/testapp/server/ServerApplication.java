@@ -67,13 +67,12 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
     }
 
     private static final String INSERT_TEMPLATE = """
-        INSERT INTO person (id, firstname, lastname, city, country, phone, political_opinion)
-        VALUES (%s, '%s', '%s', '%s', '%s', '%s', '%s');
+        INSERT INTO person (firstname, lastname, city, country, phone, political_opinion)
+        VALUES ('%s', '%s', '%s', '%s', '%s', '%s');
         """;
 
     private static String toSQLInsert(Person person) {
         return INSERT_TEMPLATE.formatted(
-                person.id(),
                 person.firstname(),
                 person.lastname(),
                 person.city(),

@@ -9,6 +9,7 @@ public abstract class PersonFactory {
 
     public static Person create() {
         return new Person(
+                null,
                 LOREM.getFirstName(),
                 LOREM.getLastName(),
                 LOREM.getCity(),

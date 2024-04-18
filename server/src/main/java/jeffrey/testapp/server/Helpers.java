@@ -6,15 +6,15 @@ import java.util.stream.Stream;
 
 public abstract class Helpers {
 
-    public static Collection<Long> generateIds(long max, int count) {
+    public static Collection<Integer> generateIds(int max, int count) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        return Stream.generate(() -> random.nextLong(max))
+        return Stream.generate(() -> random.nextInt(max))
                 .limit(count)
                 .toList();
     }
 
-    public static Long generateId(long max) {
+    public static int generateId(int max) {
         ThreadLocalRandom random = ThreadLocalRandom.current();
-        return random.nextLong(max);
+        return random.nextInt(max);
     }
 }

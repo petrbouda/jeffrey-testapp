@@ -7,6 +7,11 @@
 
 
 ```
+java -agentpath:$ASYNC_HOME/build/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
+```
+
+
+```
 // Build the project and create docker images
 mvn clean package
 

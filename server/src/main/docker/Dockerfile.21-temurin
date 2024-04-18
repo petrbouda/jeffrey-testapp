@@ -1,4 +1,4 @@
 FROM temurin-asyncprofiler:21
 
-COPY target/${project.artifactId}-${project.version}-jar-with-dependencies.jar /work/
-ENTRYPOINT java -jar /work/${project.artifactId}-${project.version}-jar-with-dependencies.jar
+COPY target/runner.jar /work/
+ENTRYPOINT java -jar /work/runner.jar

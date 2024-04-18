@@ -93,6 +93,13 @@
                             <goals>
                                 <goal>single</goal>
                             </goals>
+                            <configuration>
+                                <descriptorRefs>
+                                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                                </descriptorRefs>
+                                <finalName>runner</finalName>
+                                <appendAssemblyId>false</appendAssemblyId>
+                            </configuration>
                         </execution>
                     </executions>
                 </plugin>
