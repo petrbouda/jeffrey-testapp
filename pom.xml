@@ -52,7 +52,7 @@
                                         <directory>${project.basedir}/src/main/docker</directory>
                                         <filtering>true</filtering>
                                         <includes>
-                                            <include>Dockerfile</include>
+                                            <include>Dockerfile.*</include>
                                         </includes>
                                     </resource>
                                 </resources>

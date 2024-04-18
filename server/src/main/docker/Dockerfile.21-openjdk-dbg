@@ -1,4 +1,4 @@
-FROM openjdk-21-dbg-asyncprofiler:latest
+FROM openjdk-dbg-asyncprofiler:21
 
 COPY target/${project.artifactId}-${project.version}-jar-with-dependencies.jar /work/
 ENTRYPOINT java -jar /work/${project.artifactId}-${project.version}-jar-with-dependencies.jar

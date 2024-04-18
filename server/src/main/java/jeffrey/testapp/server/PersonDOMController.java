@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import jeffrey.testapp.server.service.PersonService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,6 +18,8 @@ import java.util.List;
  */
 @RequestMapping(path = "/persons/dom", produces = "application/json")
 public class PersonDOMController {
+
+    private static final Logger LOG = LoggerFactory.getLogger(PersonDOMController.class);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -30,19 +34,27 @@ public class PersonDOMController {
     @GetMapping
     public JsonNode getRandomPerson() {
         Person person = service.getRandomPerson();
+        LOG.info("Get RandomPerson: id={} firstname={} lastname={}",
+                person.id(), person.firstname(), person.lastname());
         return MAPPER.valueToTree(person);
     }
 
     @GetMapping("/{count}")
     public ArrayNode getNPersons(@PathVariable("count") int count) {
         List<Person> persons = service.getNPersons(count);
+        List<Long> ids = persons.stream()
+                .map(Person::id)
+                .toList();
+
+        LOG.info("Get NPersons: IDs={} count={}", ids, count);
         return MAPPER.valueToTree(persons);
     }
 
     @PostMapping
     public ObjectNode addNewPerson(Person person) {
-        Person inserted = repository.insert(person);
-        return MAPPER.valueToTree(inserted);
+        Person addedPerson = repository.insert(person);
+        LOG.info("Added Person: {}", addedPerson);
+        return MAPPER.valueToTree(addedPerson);
     }
 
     @GetMapping("/count")
@@ -54,6 +66,7 @@ public class PersonDOMController {
     @DeleteMapping("/{id}")
     public void removePerson(@PathVariable("id") Long id) {
         repository.remove(id);
+        LOG.info("Removed Person: {}", id);
     }
 
     @PostMapping("/reload")

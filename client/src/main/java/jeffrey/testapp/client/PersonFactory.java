@@ -3,11 +3,11 @@ package jeffrey.testapp.client;
 import com.thedeanda.lorem.Lorem;
 import com.thedeanda.lorem.LoremIpsum;
 
-public class PersonFactory {
+public abstract class PersonFactory {
 
     private static final Lorem LOREM = LoremIpsum.getInstance();
 
-    public static Person createPerson() {
+    public static Person create() {
         return new Person(
                 LOREM.getFirstName(),
                 LOREM.getLastName(),
