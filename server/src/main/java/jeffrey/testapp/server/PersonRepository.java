@@ -195,7 +195,7 @@ public class PersonRepository {
             deleteAll();
             loadFromFile();
         } finally {
-            writeLock.lock();
+            writeLock.unlock();
         }
     }
 

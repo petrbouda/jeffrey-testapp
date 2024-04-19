@@ -2,6 +2,8 @@ package jeffrey.testapp.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jdk.jfr.consumer.RecordingStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -23,6 +25,8 @@ import java.util.concurrent.*;
         JdbcTemplateAutoConfiguration.class
 })
 public class ServerApplication implements ApplicationListener<ApplicationStartedEvent> {
+
+    private static final Logger LOG = LoggerFactory.getLogger(ServerApplication.class);
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -58,7 +62,11 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
         }
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("backup"));
-        executor.scheduleAtFixedRate(repository::backupAndReload, 2, 2, TimeUnit.MINUTES);
+        executor.scheduleAtFixedRate(() -> {
+            LOG.info("Backup and Reloading Initiated");
+            repository.backupAndReload();
+            LOG.info("Backup and Reloading Finished");
+        }, 2, 2, TimeUnit.MINUTES);
 
 //        ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("jfr"));
 //        executor.submit(() -> {
