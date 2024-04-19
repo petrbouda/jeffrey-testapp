@@ -1,7 +1,5 @@
 package jeffrey.testapp.client;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
@@ -41,11 +39,11 @@ public class ClientApplication implements ApplicationRunner {
                 .build();
 
         var personClient = new SimplifiedPersonClient(client);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPerson), 0, 10, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getNPerson), 0, 50, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::addPerson), 0, 20, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPersonCount), 0, 5, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::removePerson), 0, 100, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPerson), 0, 20, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getNPerson), 0, 100, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::addPerson), 0, 100, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPersonCount), 0, 10, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::removePerson), 0, 125, TimeUnit.MILLISECONDS);
 
         Thread.currentThread().join();
     }

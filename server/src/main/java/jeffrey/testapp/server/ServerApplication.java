@@ -1,6 +1,7 @@
 package jeffrey.testapp.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jdk.jfr.consumer.RecordingStream;
 import org.springframework.boot.Banner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -9,11 +10,13 @@ import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
+import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.concurrent.*;
 
 @SpringBootApplication(exclude = {
         DataSourceAutoConfiguration.class,
@@ -53,6 +56,9 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("backup"));
+        executor.scheduleAtFixedRate(repository::backupAndReload, 2, 2, TimeUnit.MINUTES);
 
 //        ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("jfr"));
 //        executor.submit(() -> {

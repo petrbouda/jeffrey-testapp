@@ -1,5 +1,10 @@
 package jeffrey.testapp.server;
 
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
@@ -8,13 +13,21 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
 public class PersonRepository {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private static final String FIND_BY_ID = """
             SELECT * FROM person WHERE id = :id
@@ -36,15 +49,31 @@ public class PersonRepository {
             DELETE FROM person WHERE id = :id
             """;
 
+    private static final String REMOVE_ALL = """
+            DELETE FROM person
+            """;
+
     private static final String INSERT_PERSON = """
             INSERT INTO person (firstname, lastname, city, country, phone, political_opinion)
             VALUES (:firstname, :lastname, :city, :country, :phone, :political_opinion)
             """;
 
+    private final Path backupFile;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
+
+    // It's FAIR scheduling to not starve the writer thread
+    private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
+    private final ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
+    private final ReentrantReadWriteLock.WriteLock writeLock = lock.writeLock();
 
     public PersonRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
+        try {
+            this.backupFile = Files.createTempFile("jeffrey-testapp", null);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -54,13 +83,15 @@ public class PersonRepository {
      * @return Person entity, or {@code null} if the entity does not exist
      */
     public Optional<Person> findById(long id) {
-        SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
-
+        readLock.lock();
         try {
+            SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
             Person person = jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
             return Optional.ofNullable(person);
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
+        } finally {
+            readLock.unlock();
         }
     }
 
@@ -71,8 +102,13 @@ public class PersonRepository {
      * @return a list of the resolved entities
      */
     public List<Person> findByIds(Collection<Long> ids) {
-        SqlParameterSource params = new MapSqlParameterSource("ids", ids);
-        return jdbcTemplate.query(FIND_ALL_BY_IDS, params, personMapper());
+        readLock.lock();
+        try {
+            SqlParameterSource params = new MapSqlParameterSource("ids", ids);
+            return jdbcTemplate.query(FIND_ALL_BY_IDS, params, personMapper());
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**
@@ -81,16 +117,12 @@ public class PersonRepository {
      * @return count of all persons.
      */
     public int count() {
-        return jdbcTemplate.queryForObject(COUNT_QUERY, Map.of(), Integer.class);
-    }
-
-    /**
-     * Streams all persons from the table.
-     *
-     * @return a stream of all persons.
-     */
-    public Stream<Person> streamAll() {
-        return jdbcTemplate.queryForStream(ALL_QUERY, Map.of(), personMapper());
+        readLock.lock();
+        try {
+            return jdbcTemplate.queryForObject(COUNT_QUERY, Map.of(), Integer.class);
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**
@@ -99,8 +131,13 @@ public class PersonRepository {
      * @param id person's ID to delete
      */
     public void remove(long id) {
-        IDHolder.IDS.remove(id);
-        jdbcTemplate.update(REMOVE_QUERY_BY_ID, Map.of("id", id));
+        readLock.lock();
+        try {
+            IDHolder.IDS.remove(id);
+            jdbcTemplate.update(REMOVE_QUERY_BY_ID, Map.of("id", id));
+        } finally {
+            readLock.unlock();
+        }
     }
 
     /**
@@ -110,19 +147,33 @@ public class PersonRepository {
      * @return full populated person with a new ID
      */
     public Person insert(Person person) {
-        Map<String, Object> parameters = Map.of(
-                "firstname", person.firstname(),
-                "lastname", person.lastname(),
-                "city", person.city(),
-                "country", person.country(),
-                "phone", person.phone(),
-                "political_opinion", person.politicalOpinion());
+        readLock.lock();
+        try {
+            Map<String, Object> parameters = Map.of(
+                    "firstname", person.firstname(),
+                    "lastname", person.lastname(),
+                    "city", person.city(),
+                    "country", person.country(),
+                    "phone", person.phone(),
+                    "political_opinion", person.politicalOpinion());
 
-        GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
-        Long id = (Long) keyHolder.getKeys().get("id");
-        IDHolder.IDS.add(id);
-        return person.copyWithId(id);
+            GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
+            jdbcTemplate.update(INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
+            Long id = (Long) keyHolder.getKeys().get("id");
+            IDHolder.IDS.add(id);
+            return person.copyWithId(id);
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    /**
+     * Streams all persons from the table.
+     *
+     * @return a stream of all persons.
+     */
+    private Stream<Person> streamAll() {
+        return jdbcTemplate.queryForStream(ALL_QUERY, Map.of(), personMapper());
     }
 
     /**
@@ -137,6 +188,65 @@ public class PersonRepository {
         IDHolder.IDS.add(id);
     }
 
+    public void backupAndReload() {
+        writeLock.lock();
+        try {
+            dumpToFile();
+            deleteAll();
+            loadFromFile();
+        } finally {
+            writeLock.lock();
+        }
+    }
+
+    private void deleteAll() {
+        jdbcTemplate.update(REMOVE_ALL, Map.of());
+    }
+
+    private void dumpToFile() {
+        try (BufferedWriter writer = Files.newBufferedWriter(backupFile)) {
+            streamAll()
+                    .map(PersonRepository::convertToString)
+                    .forEach(json -> write(writer, json));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private void loadFromFile() {
+        try (Stream<String> stream = Files.lines(backupFile)) {
+            stream.map(PersonRepository::parseJsonValue)
+                    .forEach(this::insert);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static Person parseJsonValue(String json) {
+        try {
+            return MAPPER.readValue(json, Person.class);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static String convertToString(Person person) {
+        try {
+            return MAPPER.writeValueAsString(person);
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
+    private static void write(BufferedWriter writer, String json) {
+        try {
+            writer.write(json);
+            writer.newLine();
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
+
     private static RowMapper<Person> personMapper() {
         return (rs, __) -> new Person(
                 rs.getLong("id"),
@@ -145,6 +255,7 @@ public class PersonRepository {
                 rs.getString("city"),
                 rs.getString("country"),
                 rs.getString("phone"),
-                rs.getString("political_opinion"));
+                rs.getString("political_opinion")
+        );
     }
 }
