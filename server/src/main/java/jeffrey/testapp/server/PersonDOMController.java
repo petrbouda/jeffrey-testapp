@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Contains inefficiency, it's serialize/deserialize entities via JSON DOM.
@@ -32,11 +33,14 @@ public class PersonDOMController {
     }
 
     @GetMapping
-    public JsonNode getRandomPerson() {
-        Person person = service.getRandomPerson();
-        LOG.info("Get RandomPerson: id={} firstname={} lastname={}",
-                person.id(), person.firstname(), person.lastname());
-        return MAPPER.valueToTree(person);
+    public Optional<JsonNode> getRandomPerson() {
+        Optional<Person> personOpt = service.getRandomPerson();
+        if (personOpt.isPresent()) {
+            Person person = personOpt.get();
+            LOG.info("Get Person: id={} firstname={} lastname={}",
+                    person.id(), person.firstname(), person.lastname());
+        }
+        return personOpt.map(MAPPER::valueToTree);
     }
 
     @GetMapping("/{count}")

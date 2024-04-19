@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Optional;
 
 @RestController
 @RequestMapping(path = "/persons", produces = "application/json")
@@ -22,11 +23,14 @@ public class PersonController {
     }
 
     @GetMapping
-    public Person getRandomPerson() {
-        Person person = service.getRandomPerson();
-        LOG.info("Get Person: id={} firstname={} lastname={}",
-                person.id(), person.firstname(), person.lastname());
-        return person;
+    public Optional<Person> getRandomPerson() {
+        Optional<Person> personOpt = service.getRandomPerson();
+        if (personOpt.isPresent()) {
+            Person person = personOpt.get();
+            LOG.info("Get Person: id={} firstname={} lastname={}",
+                    person.id(), person.firstname(), person.lastname());
+        }
+        return personOpt;
     }
 
     @GetMapping("/{count}")
