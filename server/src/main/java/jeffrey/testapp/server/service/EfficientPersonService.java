@@ -7,6 +7,7 @@ import jeffrey.testapp.server.PersonRepository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public class EfficientPersonService implements PersonService {
 
@@ -17,11 +18,10 @@ public class EfficientPersonService implements PersonService {
     }
 
     @Override
-    public Person getRandomPerson() {
+    public Optional<Person> getRandomPerson() {
         int personIndex = Helpers.generateId(IDHolder.IDS.size());
         long personId = safeIdLookup(personIndex);
-        return repository.findById(personId)
-                .orElseGet(this::getRandomPerson);
+        return repository.findById(personId);
     }
 
     @Override
