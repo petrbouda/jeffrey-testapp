@@ -13,6 +13,8 @@
     <artifactId>client</artifactId>
 
     <properties>
+        <mainClass>jeffrey.testapp.client.ClientApplication</mainClass>
+
         <lorem.version>2.2</lorem.version>
     </properties>
 
@@ -39,6 +41,11 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
             </plugin>
         </plugins>
     </build>

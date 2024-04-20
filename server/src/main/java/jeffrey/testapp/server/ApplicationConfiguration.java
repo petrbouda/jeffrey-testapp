@@ -25,7 +25,7 @@ public class ApplicationConfiguration {
             @Value("${database.name:postgres}") String name) {
 
         HikariDataSource ds = new HikariDataSource();
-        ds.setMaximumPoolSize(4);
+        ds.setMaximumPoolSize(200);
         ds.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/" + name);
         ds.setUsername(username);
         ds.setPassword(password);

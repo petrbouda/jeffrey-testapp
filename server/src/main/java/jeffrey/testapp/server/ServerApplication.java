@@ -66,7 +66,7 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
             LOG.info("Backup and Reloading Initiated");
             repository.backupAndReload();
             LOG.info("Backup and Reloading Finished");
-        }, 2, 2, TimeUnit.MINUTES);
+        }, 5, 5, TimeUnit.MINUTES);
 
 //        ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("jfr"));
 //        executor.submit(() -> {
