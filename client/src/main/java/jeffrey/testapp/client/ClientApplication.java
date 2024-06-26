@@ -33,8 +33,12 @@ public class ClientApplication implements ApplicationRunner {
                 .version(Version.HTTP_2)
                 .build();
 
+        String baseUrl = args.containsOption("base-url")
+                ? args.getOptionValues("base-url").getFirst()
+                : "http://localhost:8081";
+
         RestClient client = RestClient.builder()
-                .baseUrl("http://localhost:8081/persons")
+                .baseUrl(baseUrl + "/persons")
                 .requestFactory(new JdkClientHttpRequestFactory(httpClient))
                 .build();
 
