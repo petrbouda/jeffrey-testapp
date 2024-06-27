@@ -1,15 +1,11 @@
 # Jeffrey - Test App to generate JFR Recordings
 
-#### Setup
-- `sudo ln -s /run/user/1000/podman/podman.sock /var/run/docker.sock`
-- `docker run -it -v /var/run/docker.sock:/var/run/docker.sock localhost/jeffrey-testapp:latest`
-- build the Docker Image: https://github.com/petrbouda/openjdk-x-dbg-asyncprofiler
-
-
 ```
-java -agentpath:$ASYNC_HOME/build/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
-```
+# sysctl kernel.perf_event_paranoid=1
+# sysctl kernel.kptr_restrict=0
 
+java -agentpath:$ASYNC_HOME/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
+```
 
 ```
 // Build the project and create docker images
