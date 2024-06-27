@@ -40,14 +40,12 @@ public class ApplicationConfiguration {
 
     @Bean
     public PersonService personService(
-            @Value("${serviceMode:inefficient}") String serviceMode,
+            @Value("${efficient.mode:true}") boolean efficientMode,
             PersonRepository personRepository) {
 
-        return switch (serviceMode) {
-            case "efficient" -> new EfficientPersonService(personRepository);
-            case "inefficient" -> new InefficientPersonService(personRepository);
-            default -> throw new RuntimeException("Unknown service mode: " + serviceMode);
-        };
+        return efficientMode
+                ? new EfficientPersonService(personRepository)
+                : new InefficientPersonService(personRepository);
     }
 
     @Bean

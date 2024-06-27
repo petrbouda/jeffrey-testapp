@@ -1,8 +1,11 @@
 package jeffrey.testapp.server;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jeffrey.testapp.server.service.PersonService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -12,51 +15,77 @@ import java.util.Optional;
 @RequestMapping(path = "/persons", produces = "application/json")
 public class PersonController {
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+
     private static final Logger LOG = LoggerFactory.getLogger(PersonController.class);
 
+    private final boolean efficientMode;
     private final PersonService service;
     private final PersonRepository repository;
 
-    public PersonController(PersonService service, PersonRepository repository) {
+    public PersonController(
+            @Value("${efficient.mode:true}") boolean efficientMode,
+            PersonService service,
+            PersonRepository repository) {
+
+        this.efficientMode = efficientMode;
         this.service = service;
         this.repository = repository;
     }
 
     @GetMapping
-    public Optional<Person> getRandomPerson() {
+    public ResponseEntity getRandomPerson() {
         Optional<Person> personOpt = service.getRandomPerson();
         if (personOpt.isPresent()) {
             Person person = personOpt.get();
             LOG.info("Get Person: id={} firstname={} lastname={}",
                     person.id(), person.firstname(), person.lastname());
         }
-        return personOpt;
+
+        if (efficientMode) {
+            return ResponseEntity.of(personOpt);
+        } else {
+            return ResponseEntity.of(personOpt.map(MAPPER::valueToTree));
+        }
     }
 
     @GetMapping("/{count}")
-    public List<Person> getNPersons(@PathVariable("count") int count) {
+    public ResponseEntity getNPersons(@PathVariable("count") int count) {
         List<Person> persons = service.getNPersons(count);
         List<Long> ids = persons.stream()
                 .map(Person::id)
                 .toList();
-
         LOG.info("Get NPersons: IDs={} count={}", ids, count);
-        return persons;
+
+        if (efficientMode) {
+            return ResponseEntity.of(Optional.of(persons));
+        } else {
+            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(persons)));
+        }
     }
 
     @PostMapping(consumes = "application/json")
-    public Person addNewPerson(@RequestBody Person person) {
+    public ResponseEntity addNewPerson(@RequestBody Person person) {
         Person addedPerson = repository.insert(person);
-        LOG.info("Added Person: id={} firstname={} lastname={}",
-                person.id(), person.firstname(), person.lastname());
-        return addedPerson;
+        LOG.info("Added Person: {}", addedPerson);
+
+        if (efficientMode) {
+            return ResponseEntity.of(Optional.of(addedPerson));
+        } else {
+            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(addedPerson)));
+        }
     }
 
     @GetMapping("/count")
-    public int personCount() {
+    public ResponseEntity personCount() {
         int count = repository.count();
         LOG.info("Person Count: {}", count);
-        return count;
+
+        if (efficientMode) {
+            return ResponseEntity.of(Optional.of(count));
+        } else {
+            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(count)));
+        }
     }
 
     @DeleteMapping("/{id}")
