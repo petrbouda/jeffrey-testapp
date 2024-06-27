@@ -4,7 +4,7 @@
 # sysctl kernel.perf_event_paranoid=1
 # sysctl kernel.kptr_restrict=0
 
-java -agentpath:$ASYNC_HOME/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
+java -agentpath:$ASPROF_HOME/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
 ```
 
 ```
