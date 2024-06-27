@@ -39,10 +39,8 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    public PersonService personService(
-            @Value("${efficient.mode:true}") boolean efficientMode,
-            PersonRepository personRepository) {
-
+    public PersonService personService(@Value("${efficient.mode:true}") boolean efficientMode, PersonRepository personRepository) {
+        System.out.println("EFFICIENT_MODE=" + efficientMode);
         return efficientMode
                 ? new EfficientPersonService(personRepository)
                 : new InefficientPersonService(personRepository);
