@@ -1,7 +1,6 @@
 package jeffrey.testapp.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jdk.jfr.consumer.RecordingStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.Banner;
@@ -12,13 +11,14 @@ import org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
-import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
 import java.util.Objects;
-import java.util.concurrent.*;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication(exclude = {
         DataSourceAutoConfiguration.class,
@@ -81,9 +81,9 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
     }
 
     private static final String INSERT_TEMPLATE = """
-        INSERT INTO person (firstname, lastname, city, country, phone, political_opinion)
-        VALUES ('%s', '%s', '%s', '%s', '%s', '%s');
-        """;
+            INSERT INTO person (firstname, lastname, city, country, phone, political_opinion)
+            VALUES ('%s', '%s', '%s', '%s', '%s', '%s');
+            """;
 
     private static String toSQLInsert(Person person) {
         return INSERT_TEMPLATE.formatted(
