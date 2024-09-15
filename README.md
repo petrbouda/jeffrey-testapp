@@ -1,10 +1,17 @@
 # Jeffrey - Test App to generate JFR Recordings
 
 ```
+java -XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:StartFlightRecording:maxage=5m,settings=profile -XX:FlightRecorderOptions:repository=/tmp/jeffrey-testapp -jar server/target/runner.jar```
+
+```
 # sysctl kernel.perf_event_paranoid=1
 # sysctl kernel.kptr_restrict=0
 
 java -agentpath:$ASPROF_HOME/lib/libasyncProfiler.so=start,event=cpu,alloc,lock,jfrsync=profile,file=first.jfr -jar server/target/runner.jar
+```
+
+```
+java -XX:-UseTLAB -XX:StartFlightRecording:filename=/tmp/allocation.jfr,dumponexit=true,settings=none,+jdk.ObjectAllocationOutsideTLAB#enabled=true,+jdk.ActiveRecording#enabled=true -jar server/target/runner.jar
 ```
 
 ```

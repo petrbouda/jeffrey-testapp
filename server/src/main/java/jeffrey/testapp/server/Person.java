@@ -12,4 +12,9 @@ public record Person(
     public Person copyWithId(Long id) {
         return new Person(id, firstname, lastname, city, country, phone, politicalOpinion);
     }
+
+    @Override
+    public int hashCode() {
+        return (int) (id / 10);
+    }
 }

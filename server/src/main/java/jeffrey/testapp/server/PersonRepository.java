@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
@@ -62,6 +63,8 @@ public class PersonRepository {
     private final ReentrantReadWriteLock.ReadLock readLock = lock.readLock();
     private final ReentrantReadWriteLock.WriteLock writeLock = lock.writeLock();
 
+    private final Map<Person, Boolean> cache = new ConcurrentHashMap<>();
+
     public PersonRepository(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         try {
@@ -82,6 +85,16 @@ public class PersonRepository {
         try {
             SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
             Person person = jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
+
+            Boolean exists = cache.get(person);
+            if (exists == null || !exists) {
+                if (cache.size() < 100) {
+                    cache.put(person, true);
+                } else {
+                    cache.clear();
+                }
+            }
+
             return Optional.ofNullable(person);
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
