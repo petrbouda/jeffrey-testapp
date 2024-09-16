@@ -37,19 +37,37 @@ public class ClientApplication implements ApplicationRunner {
                 ? args.getOptionValues("base-url").getFirst()
                 : "http://localhost:8081";
 
+//        initiatePersonInvocations(httpClient, baseUrl);
+        initiateRecordingsInvocations(httpClient, baseUrl);
+
+        Thread.currentThread().join();
+    }
+
+    private static void initiatePersonInvocations(HttpClient httpClient, String baseUrl) {
         RestClient client = RestClient.builder()
                 .baseUrl(baseUrl + "/persons")
                 .requestFactory(new JdkClientHttpRequestFactory(httpClient))
                 .build();
 
         var personClient = new SimplifiedPersonClient(client);
+
         EXECUTOR.scheduleAtFixedRate(guard(personClient::getPerson), 0, 20, TimeUnit.MILLISECONDS);
         EXECUTOR.scheduleAtFixedRate(guard(personClient::getNPerson), 0, 100, TimeUnit.MILLISECONDS);
         EXECUTOR.scheduleAtFixedRate(guard(personClient::addPerson), 0, 100, TimeUnit.MILLISECONDS);
         EXECUTOR.scheduleAtFixedRate(guard(personClient::getPersonCount), 0, 10, TimeUnit.MILLISECONDS);
         EXECUTOR.scheduleAtFixedRate(guard(personClient::removePerson), 0, 125, TimeUnit.MILLISECONDS);
+    }
 
-        Thread.currentThread().join();
+    private static void initiateRecordingsInvocations(HttpClient httpClient, String baseUrl) {
+        RestClient client = RestClient.builder()
+                .baseUrl(baseUrl + "/recordings")
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .build();
+
+        var recordingClient = new RecordingClient(client);
+
+        EXECUTOR.scheduleAtFixedRate(guard(recordingClient::getAllRecordings), 0, 20, TimeUnit.MILLISECONDS);
+        EXECUTOR.scheduleAtFixedRate(guard(recordingClient::getRecording), 0, 100, TimeUnit.MILLISECONDS);
     }
 
     private static Runnable guard(Runnable delegate) {
