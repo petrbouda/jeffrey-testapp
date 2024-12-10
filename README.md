@@ -15,6 +15,10 @@ java -XX:-UseTLAB -XX:StartFlightRecording:filename=/tmp/allocation.jfr,dumponex
 ```
 
 ```
+-XX:+UnlockDiagnosticVMOptions -XX:+DebugNonSafepoints -XX:StartFlightRecording:filename=jeffrey-persons-dom-serde-jdk,settings=profile -XX:FlightRecorderOptions:maxchunksize=5m -jar server/target/runner.jar --efficient.mode=false
+```
+
+```
 // Build the project and create docker images
 mvn clean package
 

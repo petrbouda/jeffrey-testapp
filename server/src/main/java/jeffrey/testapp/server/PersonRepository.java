@@ -85,17 +85,11 @@ public class PersonRepository {
         try {
             SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
             Person person = jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
-
-            Boolean exists = cache.get(person);
-            if (exists == null || !exists) {
-                if (cache.size() < 100) {
-                    cache.put(person, true);
-                } else {
-                    cache.clear();
-                }
+            if (person != null) {
+                return Optional.of(modifyOpinion(person));
+            } else {
+                return Optional.empty();
             }
-
-            return Optional.ofNullable(person);
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         } finally {
@@ -113,7 +107,9 @@ public class PersonRepository {
         readLock.lock();
         try {
             SqlParameterSource params = new MapSqlParameterSource("ids", ids);
-            return jdbcTemplate.query(FIND_ALL_BY_IDS, params, personMapper());
+            return jdbcTemplate.query(FIND_ALL_BY_IDS, params, personMapper()).stream()
+                    .map(PersonRepository::modifyOpinion)
+                    .toList();
         } finally {
             readLock.unlock();
         }
@@ -265,5 +261,16 @@ public class PersonRepository {
                 rs.getString("phone"),
                 rs.getString("political_opinion")
         );
+    }
+
+    private static Person modifyOpinion(Person person) {
+        return new Person(
+                person.id(),
+                person.firstname(),
+                person.lastname(),
+                person.city(),
+                person.country(),
+                person.phone(),
+                person.politicalOpinion().replaceAll("\\sm.+?\\s", " - "));
     }
 }

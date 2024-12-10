@@ -37,8 +37,8 @@ public class ClientApplication implements ApplicationRunner {
                 ? args.getOptionValues("base-url").getFirst()
                 : "http://localhost:8081";
 
-//        initiatePersonInvocations(httpClient, baseUrl);
-        initiateRecordingsInvocations(httpClient, baseUrl);
+        initiatePersonInvocations(httpClient, baseUrl);
+        // initiateRecordingsInvocations(httpClient, baseUrl);
 
         Thread.currentThread().join();
     }
