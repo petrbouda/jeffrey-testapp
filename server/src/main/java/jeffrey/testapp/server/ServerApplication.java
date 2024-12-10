@@ -20,10 +20,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-@SpringBootApplication(exclude = {
-        DataSourceAutoConfiguration.class,
-        JdbcTemplateAutoConfiguration.class
-})
+@SpringBootApplication(exclude = JdbcTemplateAutoConfiguration.class)
 public class ServerApplication implements ApplicationListener<ApplicationStartedEvent> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerApplication.class);
@@ -67,17 +64,6 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
             repository.backupAndReload();
             LOG.info("Backup and Reloading Finished");
         }, 5, 5, TimeUnit.MINUTES);
-
-//        ExecutorService executor = Executors.newSingleThreadExecutor(new NamedThreadFactory("jfr"));
-//        executor.submit(() -> {
-//            try (RecordingStream es = new RecordingStream()) {
-//                es.enable("http.Exchange");
-//                es.onEvent("http.Exchange", e -> {
-//                    System.out.println("Duration: " + e.getDuration().toMillis() + " - Response-time: " + e.getDuration("responseTime").toMillis());
-//                });
-//                es.start();
-//            }
-//        });
     }
 
     private static final String INSERT_TEMPLATE = """

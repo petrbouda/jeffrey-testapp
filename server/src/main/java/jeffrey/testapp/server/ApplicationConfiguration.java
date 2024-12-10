@@ -1,6 +1,5 @@
 package jeffrey.testapp.server;
 
-import com.zaxxer.hikari.HikariDataSource;
 import jeffrey.testapp.server.service.EfficientPersonService;
 import jeffrey.testapp.server.service.InefficientPersonService;
 import jeffrey.testapp.server.service.PersonService;
@@ -15,23 +14,6 @@ import java.util.Queue;
 
 @Configuration
 public class ApplicationConfiguration {
-
-    @Bean
-    public DataSource dataSource(
-            @Value("${database.host:localhost}") String host,
-            @Value("${database.port:26257}") int port,
-            @Value("${database.username:root}") String username,
-            @Value("${database.password:}") String password,
-            @Value("${database.name:postgres}") String name) {
-
-        HikariDataSource ds = new HikariDataSource();
-        ds.setMaximumPoolSize(200);
-        ds.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/" + name);
-        ds.setUsername(username);
-        ds.setPassword(password);
-        ds.setDriverClassName("org.postgresql.Driver");
-        return ds;
-    }
 
     @Bean
     public NamedParameterJdbcTemplate jdbcTemplate(DataSource dataSource) {

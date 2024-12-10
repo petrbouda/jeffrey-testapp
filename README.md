@@ -23,9 +23,11 @@ java -XX:-UseTLAB -XX:StartFlightRecording:filename=/tmp/allocation.jfr,dumponex
 mvn clean package
 
 // Build container images
-docker build . -t jeffrey-testapp:21-openjdk-dbg -f server/target/docker/Dockerfile.openjdk-21-dbg
-docker build . -t jeffrey-testapp:21-temurin -f server/target/docker/Dockerfile.temurin-21
+
+cd server && docker build . -t jeffrey-testapp-server:21-temurin -f target/docker/Dockerfile.21-temurin
+cd client && docker build . -t jeffrey-testapp-client:21-temurin -f target/docker/Dockerfile.21-temurin
+
+docker run -e EFFICIENT_MODE=false -e DATABASE_IN_MEMORY=true jeffrey-testapp-server
 
 docker run -it --rm --name app --cpus="1" --memory="700m" --memory-swap="700m" --network host -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/asyncprofiler:/tmp/asyncprofiler --security-opt seccomp=unconfined  jfr-test
-docker exec -ti app profiler.sh 60 -e cpu -f /tmp/asyncprofiler/cpu.svg 1
 ```

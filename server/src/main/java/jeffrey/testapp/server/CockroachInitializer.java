@@ -9,28 +9,32 @@ import org.testcontainers.containers.CockroachContainer;
 
 import java.util.Map;
 
-public class CockroachInitializer implements
-        ApplicationContextInitializer<ConfigurableApplicationContext> {
+public class CockroachInitializer implements ApplicationContextInitializer<ConfigurableApplicationContext> {
 
     private static final CockroachContainer CONTAINER =
             new CockroachContainer("cockroachdb/cockroach")
                     .withEnv("DOCKER_HOST", "unix:///run/user/1000/podman/podman.sock")
-                    .withInitScript("tables.sql");
+                    .withInitScript("data.sql");
 
     @Override
     public void initialize(ConfigurableApplicationContext applicationContext) {
-        CONTAINER.start();
+        Boolean isDatabaseInMemory = applicationContext.getEnvironment()
+                .getProperty("database.in-memory", Boolean.class, false);
 
-        System.out.printf("CockroachDB started! DB_PORT: %s, HTTP_PORT %s\n",
-                CONTAINER.getMappedPort(26257),
-                CONTAINER.getMappedPort(8080));
+        if (!isDatabaseInMemory) {
+            CONTAINER.start();
 
-        ConfigurableEnvironment environment = applicationContext.getEnvironment();
-        MutablePropertySources propertySources = environment.getPropertySources();
-        Map<String, Object> database = Map.of(
-                "database.host", CONTAINER.getHost(),
-                "database.port", CONTAINER.getMappedPort(26257));
+            System.out.printf("CockroachDB started! DB_PORT: %s, HTTP_PORT %s\n",
+                    CONTAINER.getMappedPort(26257),
+                    CONTAINER.getMappedPort(8080));
 
-        propertySources.addFirst(new MapPropertySource("cockroach-map", database));
+            ConfigurableEnvironment environment = applicationContext.getEnvironment();
+            MutablePropertySources propertySources = environment.getPropertySources();
+            Map<String, Object> database = Map.of(
+                    "database.host", CONTAINER.getHost(),
+                    "database.port", CONTAINER.getMappedPort(26257));
+
+            propertySources.addFirst(new MapPropertySource("cockroach-map", database));
+        }
     }
 }

@@ -34,8 +34,4 @@ public class SimplifiedPersonClient {
         Long count = client.getPersonCount();
         client.removePerson(Helpers.generateId(count));
     }
-
-    public void resetAndLoadSnapshot() {
-        client.reloadSnapshot();
-    }
 }

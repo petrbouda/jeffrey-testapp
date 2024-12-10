@@ -1,4 +1,4 @@
-FROM openjdk-dbg-asyncprofiler:21
+FROM eclipse-temurin:21
 
 COPY target/runner.jar /work/
 ENTRYPOINT java -jar /work/runner.jar

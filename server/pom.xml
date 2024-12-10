@@ -21,6 +21,7 @@
         <hikaricp.version>5.1.0</hikaricp.version>
         <commons-collections.version>4.4</commons-collections.version>
         <logback.version>1.5.4</logback.version>
+        <h2.version>2.3.232</h2.version>
     </properties>
 
     <dependencies>
@@ -61,6 +62,11 @@
             <artifactId>HikariCP</artifactId>
             <version>${hikaricp.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>
@@ -84,17 +90,17 @@
                 <version>3.2.0</version>
                 <groupId>org.codehaus.mojo</groupId>
                 <executions>
-                    <execution>
-                        <id>build-docker-image-21-openjdk-dbg</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>docker</executable>
-                            <commandlineArgs>build . -t ${project.artifactId}:21-openjdk-dbg -f target/docker/Dockerfile.21-openjdk-dbg</commandlineArgs>
-                        </configuration>
-                    </execution>
+<!--                    <execution>-->
+<!--                        <id>build-docker-image-21-openjdk-dbg</id>-->
+<!--                        <phase>install</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>exec</goal>-->
+<!--                        </goals>-->
+<!--                        <configuration>-->
+<!--                            <executable>docker</executable>-->
+<!--                            <commandlineArgs>build . -t ${project.artifactId}:21-openjdk-dbg -f target/docker/Dockerfile.21-openjdk-dbg</commandlineArgs>-->
+<!--                        </configuration>-->
+<!--                    </execution>-->
                     <execution>
                         <id>build-docker-image-21-temurin</id>
                         <phase>install</phase>

@@ -163,7 +163,7 @@ public class PersonRepository {
 
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
             jdbcTemplate.update(INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
-            Long id = (Long) keyHolder.getKeys().get("id");
+            Long id = extractId(keyHolder);
             IDHolder.IDS.add(id);
             return person.copyWithId(id);
         } finally {
@@ -188,7 +188,7 @@ public class PersonRepository {
     public void insertRaw(String statement) {
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(statement, new EmptySqlParameterSource(), keyHolder);
-        Long id = (Long) keyHolder.getKeys().get("id");
+        Long id = extractId(keyHolder);
         IDHolder.IDS.add(id);
     }
 
@@ -272,5 +272,13 @@ public class PersonRepository {
                 person.country(),
                 person.phone(),
                 person.politicalOpinion().replaceAll("\\sm.+?\\s", " - "));
+    }
+
+    private static Long extractId(GeneratedKeyHolder keyHolder) {
+        Object id = keyHolder.getKeys().get("id");
+        if (id instanceof Number) {
+            return ((Number) id).longValue();
+        }
+        return null;
     }
 }
