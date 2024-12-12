@@ -1,21 +1,22 @@
 package jeffrey.testapp.client;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.WebApplicationType;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.builder.SpringApplicationBuilder;
+import org.springframework.boot.context.event.ApplicationStartedEvent;
+import org.springframework.context.ApplicationListener;
+import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
 import org.springframework.web.client.RestClient;
 
 import java.net.http.HttpClient;
-import java.net.http.HttpClient.Version;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 @SpringBootApplication
-public class ClientApplication implements ApplicationRunner {
+public class ClientApplication implements ApplicationListener<ApplicationStartedEvent> {
 
     private static final ScheduledExecutorService EXECUTOR =
             Executors.newScheduledThreadPool(Integer.MAX_VALUE, Thread.ofVirtual().factory());
@@ -27,35 +28,55 @@ public class ClientApplication implements ApplicationRunner {
     }
 
     @Override
-    public void run(ApplicationArguments args) throws Exception {
+    public void onApplicationEvent(ApplicationStartedEvent event) {
+        ConfigurableApplicationContext context = event.getApplicationContext();
+
         HttpClient httpClient = HttpClient.newBuilder()
                 .executor(Executors.newVirtualThreadPerTaskExecutor())
-                .version(Version.HTTP_2)
                 .build();
 
-        String baseUrl = args.containsOption("base-url")
-                ? args.getOptionValues("base-url").getFirst()
-                : "http://localhost:8080";
+        ConfigurableEnvironment environment = context.getEnvironment();
+        String baseUrls = environment.getProperty("base-urls", String.class, "http://localhost:8080");
 
-        initiatePersonInvocations(httpClient, baseUrl);
+        String[] urls = baseUrls.split(",");
 
-        Thread.currentThread().join();
+        for (String url : urls) {
+            initiatePersonInvocations(environment, httpClient, url);
+        }
+
+        try {
+            Thread.currentThread().join();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private static void initiatePersonInvocations(HttpClient httpClient, String baseUrl) {
+    private static void initiatePersonInvocations(
+            ConfigurableEnvironment environment, HttpClient httpClient, String baseUrl) {
+
         RestClient client = RestClient.builder()
                 .baseUrl(baseUrl + "/persons")
-                .requestFactory(new JdkClientHttpRequestFactory(httpClient))
+                .requestFactory(new JdkClientHttpRequestFactory(httpClient, Executors.newVirtualThreadPerTaskExecutor()))
                 .build();
 
         var personClient = new SimplifiedPersonClient(client);
 
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPerson), 0, 20, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getNPerson), 0, 100, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::addPerson), 0, 100, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPersonCount), 0, 10, TimeUnit.MILLISECONDS);
-        EXECUTOR.scheduleAtFixedRate(guard(personClient::removePerson), 0, 125, TimeUnit.MILLISECONDS);
+        Long getPerson = environment.getProperty("load.get-person", Long.class, 20L);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPerson), 0, getPerson, TimeUnit.MILLISECONDS);
+
+        Long getNPerson = environment.getProperty("load.get-n-person", Long.class, 100L);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getNPerson), 0, getNPerson, TimeUnit.MILLISECONDS);
+
+        Long addPerson = environment.getProperty("load.add-person", Long.class, 100L);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::addPerson), 0, addPerson, TimeUnit.MILLISECONDS);
+
+        Long personCount = environment.getProperty("load.get-person-count", Long.class, 10L);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::getPersonCount), 0, personCount, TimeUnit.MILLISECONDS);
+
+        Long removePerson = environment.getProperty("load.remove-person", Long.class, 125L);
+        EXECUTOR.scheduleAtFixedRate(guard(personClient::removePerson), 0, removePerson, TimeUnit.MILLISECONDS);
     }
+
 
     private static Runnable guard(Runnable delegate) {
         return () -> {

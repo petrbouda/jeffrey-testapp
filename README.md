@@ -24,8 +24,8 @@ mvn clean package
 
 // Build container images
 
-cd server && docker build . -t jeffrey-testapp-server:21-temurin -f target/docker/Dockerfile.21-temurin
-cd client && docker build . -t jeffrey-testapp-client:21-temurin -f target/docker/Dockerfile.21-temurin
+cd server && docker build . -t petrbouda/jeffrey-testapp-server -f target/docker/Dockerfile.21-temurin
+cd client && docker build . -t petrbouda/jeffrey-testapp-client -f target/docker/Dockerfile.21-temurin
 
 docker run -e EFFICIENT_MODE=false -e DATABASE_IN_MEMORY=true jeffrey-testapp-server
 
