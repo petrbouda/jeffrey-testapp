@@ -23,7 +23,6 @@ public class ClientApplication implements ApplicationListener<ApplicationStarted
 
     public static void main(String[] args) {
         new SpringApplicationBuilder(ClientApplication.class)
-                .web(WebApplicationType.NONE)
                 .run(args);
     }
 
