@@ -1,6 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: jeffrey-testapp-direct-server-configmap
+  name: {{ include "jeffrey-testapp-server.fullname" . }}-configmap
 data:
-  myvalue: "Hello World"
+  application.properties: |-
+{{ .Files.Get "application.properties" | indent 4 }}

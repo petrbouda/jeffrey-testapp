@@ -27,6 +27,9 @@ mvn clean package
 cd server && docker build . -t petrbouda/jeffrey-testapp-server -f target/docker/Dockerfile.21-temurin
 cd client && docker build . -t petrbouda/jeffrey-testapp-client -f target/docker/Dockerfile.21-temurin
 
+docker push petrbouda/jeffrey-testapp-server
+docker push petrbouda/jeffrey-testapp-client
+
 docker run -e EFFICIENT_MODE=false -e DATABASE_IN_MEMORY=true jeffrey-testapp-server
 
 docker run -it --rm --name app --cpus="1" --memory="700m" --memory-swap="700m" --network host -v /var/run/docker.sock:/var/run/docker.sock -v /tmp/asyncprofiler:/tmp/asyncprofiler --security-opt seccomp=unconfined  jfr-test
