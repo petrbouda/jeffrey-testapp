@@ -91,11 +91,11 @@ resources: {}
 livenessProbe:
   httpGet:
     path: /actuator/health
-    port: http
+    port: 8080
 readinessProbe:
   httpGet:
     path: /actuator/health
-    port: http
+    port: 8080
 
 volumes:
   - name: jeffrey-console-configmap

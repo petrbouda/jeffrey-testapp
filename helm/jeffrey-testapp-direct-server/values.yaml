@@ -90,12 +90,17 @@ resources: {}
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:
   httpGet:
-    path: /actuator/health
-    port: http
+    path: /persons
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
 readinessProbe:
   httpGet:
-    path: /actuator/health
-    port: http
+    path: /persons
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
 
 volumes:
   - name: jeffrey-testapp-direct-server-configmap
