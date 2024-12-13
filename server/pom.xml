@@ -14,6 +14,7 @@
 
     <properties>
         <mainClass>jeffrey.testapp.server.ServerApplication</mainClass>
+        <finalName>runner</finalName>
 
         <testcontainers.version>1.19.7</testcontainers.version>
         <postgres.version>42.2.16</postgres.version>
@@ -85,70 +86,13 @@
             </plugin>
 
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-assembly-plugin</artifactId>
+                <artifactId>maven-dependency-plugin</artifactId>
             </plugin>
 
             <plugin>
-                <artifactId>exec-maven-plugin</artifactId>
-                <version>3.2.0</version>
-                <groupId>org.codehaus.mojo</groupId>
-                <executions>
-<!--                    <execution>-->
-<!--                        <id>build-docker-image-21-openjdk-dbg</id>-->
-<!--                        <phase>install</phase>-->
-<!--                        <goals>-->
-<!--                            <goal>exec</goal>-->
-<!--                        </goals>-->
-<!--                        <configuration>-->
-<!--                            <executable>docker</executable>-->
-<!--                            <commandlineArgs>build . -t ${project.artifactId}:21-openjdk-dbg -f target/docker/Dockerfile.21-openjdk-dbg</commandlineArgs>-->
-<!--                        </configuration>-->
-<!--                    </execution>-->
-                    <execution>
-                        <id>build-docker-image-21-temurin</id>
-                        <phase>install</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>docker</executable>
-                            <commandlineArgs>build . -t ${project.artifactId}:21-temurin -f target/docker/Dockerfile.21-temurin</commandlineArgs>
-                        </configuration>
-                    </execution>
-                </executions>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-assembly-plugin</artifactId>
             </plugin>
         </plugins>
     </build>
-
-    <profiles>
-        <profile>
-            <id>native</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.springframework.boot</groupId>
-                        <artifactId>spring-boot-maven-plugin</artifactId>
-                    </plugin>
-                    <plugin>
-                        <groupId>org.graalvm.buildtools</groupId>
-                        <artifactId>native-maven-plugin</artifactId>
-                        <configuration>
-                            <metadataRepository>
-                                <enabled>true</enabled>
-                            </metadataRepository>
-                            <verbose>true</verbose>
-
-                            <buildArgs>
-<!--                                <arg>-H:+UnlockExperimentalVMOptions</arg>-->
-                                <arg>--verbose</arg>
-<!--                                <arg>&#45;&#45;initialize-at-build-time=org.slf4j.LoggerFactory,ch.qos.logback</arg>-->
-<!--                                <arg>&#45;&#45;trace-class-initialization=ch.qos.logback.core.status.InfoStatus,ch.qos.logback.core.util.StatusPrinter,ch.qos.logback.classic.Level,ch.qos.logback.classic.Logger,ch.qos.logback.core.util.Loader,ch.qos.logback.core.status.StatusBase</arg>-->
-                            </buildArgs>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-    </profiles>
 </project>

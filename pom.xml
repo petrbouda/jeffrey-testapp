@@ -72,38 +72,44 @@
                 </plugin>
 
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-assembly-plugin</artifactId>
-                    <version>3.7.1</version>
-                    <configuration>
-                        <descriptorRefs>
-                            <descriptorRef>jar-with-dependencies</descriptorRef>
-                        </descriptorRefs>
-                        <archive>
-                            <manifest>
-                                <addClasspath>true</addClasspath>
-                                <mainClass>${mainClass}</mainClass>
-                            </manifest>
-                        </archive>
-                    </configuration>
+                    <artifactId>maven-dependency-plugin</artifactId>
                     <executions>
                         <execution>
-                            <id>assemble-all</id>
+                            <phase>prepare-package</phase>
+                            <goals>
+                                <goal>copy-dependencies</goal>
+                            </goals>
+                            <configuration>
+                                <outputDirectory>${project.build.directory}/lib</outputDirectory>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-assembly-plugin</artifactId>
+                    <executions>
+                        <execution>
                             <phase>package</phase>
                             <goals>
                                 <goal>single</goal>
                             </goals>
                             <configuration>
+                                <finalName>${finalName}</finalName>
+                                <archive>
+                                    <manifest>
+                                        <mainClass>${mainClass}</mainClass>
+                                    </manifest>
+                                </archive>
                                 <descriptorRefs>
                                     <descriptorRef>jar-with-dependencies</descriptorRef>
                                 </descriptorRefs>
-                                <finalName>runner</finalName>
                                 <appendAssemblyId>false</appendAssemblyId>
                             </configuration>
                         </execution>
                     </executions>
                 </plugin>
-            </plugins>
-        </pluginManagement>
+            </plugins></pluginManagement>
     </build>
 </project>
