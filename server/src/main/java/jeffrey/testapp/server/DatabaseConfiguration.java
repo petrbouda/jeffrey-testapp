@@ -10,7 +10,7 @@ import javax.sql.DataSource;
 
 @Configuration
 @ConditionalOnProperty(value = "database.in-memory", havingValue = "false", matchIfMissing = true)
-public class CockroachConfiguration {
+public class DatabaseConfiguration {
 
     @Bean
     public DataSource dataSource(
