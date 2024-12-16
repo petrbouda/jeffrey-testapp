@@ -4,33 +4,39 @@ import jeffrey.testapp.server.Helpers;
 import jeffrey.testapp.server.IDHolder;
 import jeffrey.testapp.server.Person;
 import jeffrey.testapp.server.PersonRepository;
+import jeffrey.testapp.server.leak.NativeMemoryAllocator;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public class EfficientPersonService implements PersonService {
-
     private final PersonRepository repository;
+    private final NativeMemoryAllocator nativeMemoryAllocator;
 
-    public EfficientPersonService(PersonRepository repository) {
+    public EfficientPersonService(PersonRepository repository, NativeMemoryAllocator nativeMemoryAllocator) {
         this.repository = repository;
+        this.nativeMemoryAllocator = nativeMemoryAllocator;
     }
 
     @Override
     public Optional<Person> getRandomPerson() {
-        int personIndex = Helpers.generateId(IDHolder.IDS.size());
-        long personId = safeIdLookup(personIndex);
-        return repository.findById(personId);
+        try (var __ = nativeMemoryAllocator.allocate()) {
+            int personIndex = Helpers.generateId(IDHolder.IDS.size());
+            long personId = safeIdLookup(personIndex);
+            return repository.findById(personId);
+        }
     }
 
     @Override
     public List<Person> getNPersons(int count) {
-        Collection<Integer> indices = Helpers.generateIds(IDHolder.IDS.size(), count);
-        List<Long> personIds = indices.stream()
-                .map(EfficientPersonService::safeIdLookup)
-                .toList();
-        return repository.findByIds(personIds);
+        try (var __ = nativeMemoryAllocator.allocate()) {
+            Collection<Integer> indices = Helpers.generateIds(IDHolder.IDS.size(), count);
+            List<Long> personIds = indices.stream()
+                    .map(EfficientPersonService::safeIdLookup)
+                    .toList();
+            return repository.findByIds(personIds);
+        }
     }
 
     private static long safeIdLookup(int index) {

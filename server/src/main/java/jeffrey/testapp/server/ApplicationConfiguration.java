@@ -1,5 +1,8 @@
 package jeffrey.testapp.server;
 
+import jeffrey.testapp.server.leak.NativeMemoryAllocator;
+import jeffrey.testapp.server.leak.NativeMemoryAllocatorImpl;
+import jeffrey.testapp.server.leak.NoopNativeMemoryAllocator;
 import jeffrey.testapp.server.service.EfficientPersonService;
 import jeffrey.testapp.server.service.InefficientPersonService;
 import jeffrey.testapp.server.service.PersonService;
@@ -21,11 +24,23 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    public PersonService personService(@Value("${efficient.mode:true}") boolean efficientMode, PersonRepository personRepository) {
+    public NativeMemoryAllocator nativeMemoryLeakingService(
+            @Value("${native-memory-leak.mode:false}") boolean nativeMemoryLeakMode) {
+        return nativeMemoryLeakMode
+                ? new NativeMemoryAllocatorImpl()
+                : new NoopNativeMemoryAllocator();
+    }
+
+    @Bean
+    public PersonService personService(
+            @Value("${efficient.mode:true}") boolean efficientMode,
+            PersonRepository personRepository,
+            NativeMemoryAllocator nativeMemoryAllocator) {
+
         System.out.println("EFFICIENT_MODE=" + efficientMode);
         return efficientMode
-                ? new EfficientPersonService(personRepository)
-                : new InefficientPersonService(personRepository);
+                ? new EfficientPersonService(personRepository, nativeMemoryAllocator)
+                : new InefficientPersonService(personRepository, nativeMemoryAllocator);
     }
 
     @Bean

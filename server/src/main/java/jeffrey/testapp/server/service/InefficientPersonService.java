@@ -4,36 +4,42 @@ import jeffrey.testapp.server.Helpers;
 import jeffrey.testapp.server.IDHolder;
 import jeffrey.testapp.server.Person;
 import jeffrey.testapp.server.PersonRepository;
+import jeffrey.testapp.server.leak.NativeMemoryAllocator;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
 public class InefficientPersonService implements PersonService {
-
     private final PersonRepository repository;
+    private final NativeMemoryAllocator nativeMemoryAllocator;
 
-    public InefficientPersonService(PersonRepository repository) {
+    public InefficientPersonService(PersonRepository repository, NativeMemoryAllocator nativeMemoryAllocator) {
         this.repository = repository;
+        this.nativeMemoryAllocator = nativeMemoryAllocator;
     }
 
     @Override
     public Optional<Person> getRandomPerson() {
-        int latestPersonCount = repository.count();
-        int personIndex = Helpers.generateId(latestPersonCount);
-        long personId = safeIdLookup(personIndex);
-        return repository.findById(personId);
+        try (var __ = nativeMemoryAllocator.allocate()) {
+            int latestPersonCount = repository.count();
+            int personIndex = Helpers.generateId(latestPersonCount);
+            long personId = safeIdLookup(personIndex);
+            return repository.findById(personId);
+        }
     }
 
     @Override
     public List<Person> getNPersons(int count) {
-        int latestPersonCount = repository.count();
-        Collection<Integer> indices = Helpers.generateIds(latestPersonCount, count);
-        List<Long> personIds = indices.stream()
-                .map(InefficientPersonService::safeIdLookup)
-                .toList();
+        try (var __ = nativeMemoryAllocator.allocate()) {
+            int latestPersonCount = repository.count();
+            Collection<Integer> indices = Helpers.generateIds(latestPersonCount, count);
+            List<Long> personIds = indices.stream()
+                    .map(InefficientPersonService::safeIdLookup)
+                    .toList();
 
-        return repository.findByIds(personIds);
+            return repository.findByIds(personIds);
+        }
     }
 
     private static long safeIdLookup(int index) {
