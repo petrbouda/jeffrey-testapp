@@ -8,7 +8,7 @@
 #
 FROM ubuntu AS builder
 
-RUN apt update && apt install -y openjdk-24-jdk cmake g++ git
+RUN apt update && apt install -y openjdk-21-jdk cmake g++ git
 
 RUN git clone --depth=1 https://github.com/jvm-profiling-tools/async-profiler /async-profiler &&\
     cd /async-profiler &&\
