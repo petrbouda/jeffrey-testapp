@@ -1,0 +1,32 @@
+# Multi-Stage Reason:
+#
+# - build `async-profiler` using AdoptOpenJDK
+# - contains header files in `include` folder - e.g. jvmti.h
+
+#
+# THE FIRST STAGE - build `async-profiler`
+#
+FROM ubuntu AS builder
+
+RUN apt update && apt install -y openjdk-24-jdk cmake g++ git
+
+RUN git clone --depth=1 https://github.com/jvm-profiling-tools/async-profiler /async-profiler &&\
+    cd /async-profiler &&\
+    make
+
+#
+# THE SECOND STAGE
+# - Use Eclipse Temurin as a OpenJDK build
+# - copy `async-profiler`
+#
+FROM eclipse-temurin:24
+
+# Install necessary tools
+RUN apt install -y binutils
+
+COPY --from=builder /async-profiler/build /usr/lib/async-profiler
+
+ENV ASPROF_HOME=/usr/lib/async-profiler
+ENV PATH=$PATH:$ASPROF_HOME/bin:$JAVA_HOME/bin
+
+CMD ["jshell"]

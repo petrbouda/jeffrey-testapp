@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21
+FROM petrbouda/temurin-asprof:21
 
 COPY target/runner.jar /work/
 ENTRYPOINT java -jar /work/runner.jar

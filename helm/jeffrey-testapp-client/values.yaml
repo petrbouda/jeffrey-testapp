@@ -5,13 +5,20 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
+initContainer:
+  name: jeffrey-console-init
+  image: petrbouda/jeffrey-init-container:latest
+  args: [ "/tmp/jeffrey/jeffrey-testapp-client" ]
+  volumeMounts:
+    - name: jeffrey-vol
+      mountPath: "/tmp/jeffrey"
+
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
-image:
-  repository: petrbouda/jeffrey-testapp-client
-  # This sets the pull policy for images.
-  pullPolicy: Always
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: "latest"
+image: petrbouda/jeffrey-testapp-client:latest
+pullPolicy: Always
+
+command: ["bash", "-c", "source /tmp/jeffrey/.env && java -jar /work/runner.jar"]
+args: []
 
 containerPort: 8080
 
@@ -91,11 +98,16 @@ resources: {}
 livenessProbe:
   httpGet:
     path: /actuator/health
-    port: http
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
 readinessProbe:
   httpGet:
     path: /actuator/health
-    port: http
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
 
 volumes:
   - name: jeffrey-testapp-client-configmap
@@ -104,15 +116,22 @@ volumes:
       items:
         - key: application.properties
           path: application.properties
+  - name: jeffrey-vol
+    persistentVolumeClaim:
+      claimName: jeffrey-pvc
 
 volumeMounts:
   - name: jeffrey-testapp-client-configmap
     mountPath: /app/config
     readOnly: true
+  - name: jeffrey-vol
+    mountPath: "/tmp/jeffrey"
 
 env:
   - name: SPRING_CONFIG_LOCATION
     value: /app/config/application.properties
+  - name: JDK_JAVA_OPTIONS
+    value: -agentpath:/usr/lib/async-profiler/lib/libasyncProfiler.so=start,event=ctimer,wall=10ms,loop=5m,chunksize=5m,jfrsync=default,file=%{JEFFREY_PROFILE_DIR}/profile-%t.jfr
 
 nodeSelector: {}
 

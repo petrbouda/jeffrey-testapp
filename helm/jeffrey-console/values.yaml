@@ -5,16 +5,13 @@
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
-initContainer:
-  name: jeffrey-console-init
-  image: petrbouda/jeffrey-init-container:latest
-  args: [ "/tmp" ]
+initContainer: {}
 
 # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
 image: petrbouda/jeffrey:latest
 pullPolicy: Always
 
-command: ["bash", "-c", "java -jar /app/jeffrey.jar"]
+#command: ["bash", "-c", "java -jar /app/jeffrey.jar"]
 args: []
 
 containerPort: 8080
@@ -112,11 +109,16 @@ volumes:
       items:
         - key: application.properties
           path: application.properties
+  - name: jeffrey-vol
+    persistentVolumeClaim:
+      claimName: jeffrey-pvc
 
 volumeMounts:
   - name: jeffrey-console-configmap
     mountPath: /app/config
     readOnly: true
+  - name: jeffrey-vol
+    mountPath: "/tmp/jeffrey"
 
 env:
   - name: SPRING_CONFIG_LOCATION
