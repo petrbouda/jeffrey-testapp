@@ -5,9 +5,10 @@ metadata:
   labels:
     type: local
 spec:
+  storageClassName: shared-storage
   capacity:
     storage: 20Gi
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   hostPath:
     path: "/tmp/jeffrey-data"

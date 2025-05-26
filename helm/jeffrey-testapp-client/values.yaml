@@ -6,7 +6,7 @@
 replicaCount: 1
 
 initContainer:
-  name: jeffrey-console-init
+  name: jeffrey-init-container
   image: petrbouda/jeffrey-init-container:latest
   args: [ "/tmp/jeffrey/jeffrey-testapp-client" ]
   volumeMounts:
