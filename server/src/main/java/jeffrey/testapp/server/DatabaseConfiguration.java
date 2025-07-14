@@ -24,7 +24,8 @@ public class DatabaseConfiguration {
 
 
         HikariConfig config = new HikariConfig();
-        config.setMaximumPoolSize(200);
+        config.setMaximumPoolSize(10);
+        config.setMinimumIdle(1);
         config.setJdbcUrl("jdbc:postgresql://" + host + ":" + port + "/" + name);
         config.setUsername(username);
         config.setPassword(password);

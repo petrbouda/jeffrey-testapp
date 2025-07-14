@@ -1,11 +1,18 @@
 # Install Jeffrey Test App using Helm
 
-```
-colima start --kubernetes
-```
-
+#### Manually adding PV/PVC
 ```
 kubectl apply -f ./jeffrey-console/templates/persistent-volume.yaml
+
+kubectl delete -f ./jeffrey-console/templates/persistent-volume-claim.yaml && \
+kubectl delete -f ./jeffrey-console/templates/persistent-volume.yaml
+```
+
+#### Start Minikube and deploy Applications using Helm
+
+```
+minikube start --cpus 6 --memory 16g
+minikubed dashboard
 ```
 
 ```
@@ -20,9 +27,4 @@ helm uninstall jeffrey-console && \
 helm uninstall jeffrey-testapp-client && \
 helm uninstall jeffrey-testapp-dom-server && \
 helm uninstall jeffrey-testapp-direct-server
-```
-
-```
-kubectl delete -f ./jeffrey-console/templates/persistent-volume-claim.yaml && \
-kubectl delete -f ./jeffrey-console/templates/persistent-volume.yaml
 ```

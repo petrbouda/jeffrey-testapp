@@ -17,7 +17,7 @@ initContainer:
 image: petrbouda/jeffrey-testapp-client:latest
 pullPolicy: Always
 
-command: ["bash", "-c", "source /tmp/jeffrey/.env && java -jar /work/runner.jar"]
+command: ["bash", "-c", "source /tmp/jeffrey/jeffrey-testapp-client/.env && java -jar /work/runner.jar"]
 args: []
 
 containerPort: 8080
