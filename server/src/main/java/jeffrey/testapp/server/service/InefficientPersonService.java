@@ -22,7 +22,7 @@ public class InefficientPersonService implements PersonService {
     @Override
     public Optional<Person> getRandomPerson() {
         try (var __ = nativeMemoryAllocator.allocate()) {
-            int latestPersonCount = repository.count();
+            int latestPersonCount = repository.count().intValue();
             int personIndex = Helpers.generateId(latestPersonCount);
             long personId = safeIdLookup(personIndex);
             return repository.findById(personId);
@@ -32,7 +32,7 @@ public class InefficientPersonService implements PersonService {
     @Override
     public List<Person> getNPersons(int count) {
         try (var __ = nativeMemoryAllocator.allocate()) {
-            int latestPersonCount = repository.count();
+            int latestPersonCount = repository.count().intValue();
             Collection<Integer> indices = Helpers.generateIds(latestPersonCount, count);
             List<Long> personIds = indices.stream()
                     .map(InefficientPersonService::safeIdLookup)

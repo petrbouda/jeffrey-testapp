@@ -78,7 +78,7 @@ public class PersonController {
 
     @GetMapping("/count")
     public ResponseEntity personCount() {
-        int count = repository.count();
+        int count = repository.count().intValue();
         LOG.info("Person Count: {}", count);
 
         if (efficientMode) {

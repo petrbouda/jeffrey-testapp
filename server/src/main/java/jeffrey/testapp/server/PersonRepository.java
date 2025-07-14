@@ -1,6 +1,8 @@
 package jeffrey.testapp.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jeffrey.testapp.server.metrics.DatabaseClient;
+import jeffrey.testapp.server.metrics.DatabaseClient.StatementLabel;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.EmptySqlParameterSource;
@@ -19,6 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 public class PersonRepository {
@@ -56,7 +59,7 @@ public class PersonRepository {
 
     private final Path backupFile;
 
-    private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final DatabaseClient databaseClient;
 
     // It's FAIR scheduling to not starve the writer thread
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
@@ -66,7 +69,7 @@ public class PersonRepository {
     private final Map<Person, Boolean> cache = new ConcurrentHashMap<>();
 
     public PersonRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-        this.jdbcTemplate = jdbcTemplate;
+        this.databaseClient = new DatabaseClient(jdbcTemplate, "person-repository");
         try {
             this.backupFile = Files.createTempFile("jeffrey-testapp", null);
         } catch (IOException e) {
@@ -84,12 +87,10 @@ public class PersonRepository {
         readLock.lock();
         try {
             SqlParameterSource params = new MapSqlParameterSource().addValue("id", id);
-            Person person = jdbcTemplate.queryForObject(FIND_BY_ID, params, personMapper());
-            if (person != null) {
-                return Optional.of(modifyOpinion(person));
-            } else {
-                return Optional.empty();
-            }
+            Optional<Person> personOpt = databaseClient.querySingle(
+                    StatementLabel.FIND_BY_ID, FIND_BY_ID, params, personMapper());
+
+            return personOpt.map(PersonRepository::modifyOpinion);
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         } finally {
@@ -107,7 +108,7 @@ public class PersonRepository {
         readLock.lock();
         try {
             SqlParameterSource params = new MapSqlParameterSource("ids", ids);
-            return jdbcTemplate.query(FIND_ALL_BY_IDS, params, personMapper()).stream()
+            return databaseClient.query(StatementLabel.FIND_ALL_BY_IDS, FIND_ALL_BY_IDS, params, personMapper()).stream()
                     .map(PersonRepository::modifyOpinion)
                     .toList();
         } finally {
@@ -120,10 +121,10 @@ public class PersonRepository {
      *
      * @return count of all persons.
      */
-    public int count() {
+    public Long count() {
         readLock.lock();
         try {
-            return jdbcTemplate.queryForObject(COUNT_QUERY, Map.of(), Integer.class);
+            return databaseClient.queryLong(StatementLabel.COUNT_QUERY, COUNT_QUERY, new MapSqlParameterSource());
         } finally {
             readLock.unlock();
         }
@@ -138,7 +139,7 @@ public class PersonRepository {
         readLock.lock();
         try {
             IDHolder.IDS.remove(id);
-            jdbcTemplate.update(REMOVE_QUERY_BY_ID, Map.of("id", id));
+            databaseClient.delete(StatementLabel.REMOVE_QUERY_BY_ID, REMOVE_QUERY_BY_ID, new MapSqlParameterSource("id", id));
         } finally {
             readLock.unlock();
         }
@@ -162,7 +163,7 @@ public class PersonRepository {
                     "political_opinion", person.politicalOpinion());
 
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-            jdbcTemplate.update(INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
+            databaseClient.update(StatementLabel.INSERT_PERSON, INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
             Long id = extractId(keyHolder);
             IDHolder.IDS.add(id);
             return person.copyWithId(id);
@@ -173,11 +174,9 @@ public class PersonRepository {
 
     /**
      * Streams all persons from the table.
-     *
-     * @return a stream of all persons.
      */
-    private Stream<Person> streamAll() {
-        return jdbcTemplate.queryForStream(ALL_QUERY, Map.of(), personMapper());
+    private void streamAll(Consumer<Person> consumer) {
+        databaseClient.queryStream(StatementLabel.ALL_QUERY, ALL_QUERY, personMapper(), consumer);
     }
 
     /**
@@ -187,7 +186,7 @@ public class PersonRepository {
      */
     public void insertRaw(String statement) {
         GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(statement, new EmptySqlParameterSource(), keyHolder);
+        databaseClient.update(StatementLabel.RAW_INSERT, statement, new EmptySqlParameterSource(), keyHolder);
         Long id = extractId(keyHolder);
         IDHolder.IDS.add(id);
     }
@@ -204,14 +203,12 @@ public class PersonRepository {
     }
 
     private void deleteAll() {
-        jdbcTemplate.update(REMOVE_ALL, Map.of());
+        databaseClient.delete(StatementLabel.REMOVE_ALL, REMOVE_ALL, new MapSqlParameterSource());
     }
 
     private void dumpToFile() {
         try (BufferedWriter writer = Files.newBufferedWriter(backupFile)) {
-            streamAll()
-                    .map(PersonRepository::convertToString)
-                    .forEach(json -> write(writer, json));
+            streamAll(person -> write(writer, convertToString(person)));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

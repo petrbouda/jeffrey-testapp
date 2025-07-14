@@ -34,7 +34,7 @@ public class RequestInterceptor implements HandlerInterceptor {
             if (event.shouldCommit()) {
                 event.end();
                 event.method = request.getMethod();
-                event.uri = request.getRequestURI();
+                event.uri = getUriWithTemplates(request);
                 event.status = response.getStatus();
                 event.requestLength = request.getContentLengthLong();
                 event.responseLength = getResponseContentLength(response);
@@ -108,5 +108,36 @@ public class RequestInterceptor implements HandlerInterceptor {
         }
 
         return pathParams.toString();
+    }
+
+    private String getUriWithTemplates(HttpServletRequest request) {
+        String originalUri = request.getRequestURI();
+        
+        // Get path variables from Spring's HandlerMapping
+        Object pathVariables = request.getAttribute("org.springframework.web.servlet.HandlerMapping.uriTemplateVariables");
+        Object bestMatchingPattern = request.getAttribute("org.springframework.web.servlet.HandlerMapping.bestMatchingPattern");
+        
+        // If we have a matching pattern, use it directly
+        if (bestMatchingPattern != null) {
+            return bestMatchingPattern.toString();
+        }
+        
+        // If we have path variables, replace their values with template names
+        if (pathVariables instanceof Map) {
+            @SuppressWarnings("unchecked")
+            Map<String, String> pathVars = (Map<String, String>) pathVariables;
+            
+            String templatedUri = originalUri;
+            for (Map.Entry<String, String> entry : pathVars.entrySet()) {
+                String paramName = entry.getKey();
+                String paramValue = entry.getValue();
+                // Replace the actual value with the template placeholder
+                templatedUri = templatedUri.replace("/" + paramValue, "/{" + paramName + "}");
+            }
+            return templatedUri;
+        }
+        
+        // Fallback to original URI if no path variables
+        return originalUri;
     }
 }
