@@ -1,4 +1,4 @@
-FROM petrbouda/temurin-asprof:24
+FROM eclipse-temurin:24
 
 RUN apt update && apt -y install git maven
 
