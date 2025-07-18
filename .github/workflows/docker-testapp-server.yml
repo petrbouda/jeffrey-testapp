@@ -3,7 +3,7 @@ on:
     tags:
       - '*'
 
-name: Jeffrey Examples Docker Image
+name: Jeffrey TestApp Server Container Image
 
 jobs:
   build:
