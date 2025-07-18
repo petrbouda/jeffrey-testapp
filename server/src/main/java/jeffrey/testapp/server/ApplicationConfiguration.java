@@ -40,9 +40,14 @@ public class ApplicationConfiguration implements WebMvcConfigurer {
     @Bean
     public NativeMemoryAllocator nativeMemoryLeakingService(
             @Value("${native-memory-leak.mode:false}") boolean nativeMemoryLeakMode) {
-        return nativeMemoryLeakMode
-                ? new NativeMemoryAllocatorImpl()
-                : new NoopNativeMemoryAllocator();
+
+        if (nativeMemoryLeakMode) {
+            System.out.println("Native memory leak mode: Enabled.");
+            return new NativeMemoryAllocatorImpl();
+        } else {
+            System.out.println("Native memory leak mode: Disabled.");
+            return new NoopNativeMemoryAllocator();
+        }
     }
 
     @Bean

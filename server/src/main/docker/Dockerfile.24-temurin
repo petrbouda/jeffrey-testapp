@@ -1,4 +1,0 @@
-FROM petrbouda/temurin-asprof:24
-
-COPY target/runner.jar /work/
-ENTRYPOINT java -jar /work/runner.jar
