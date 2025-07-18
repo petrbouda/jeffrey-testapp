@@ -6,6 +6,7 @@ import jeffrey.testapp.server.Person;
 import jeffrey.testapp.server.PersonRepository;
 import jeffrey.testapp.server.leak.NativeMemoryAllocator;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -26,6 +27,8 @@ public class InefficientPersonService implements PersonService {
             int personIndex = Helpers.generateId(latestPersonCount);
             long personId = safeIdLookup(personIndex);
             return repository.findById(personId);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -39,6 +42,8 @@ public class InefficientPersonService implements PersonService {
                     .toList();
 
             return repository.findByIds(personIds);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
         }
     }
 

@@ -4,6 +4,6 @@ public class NoopNativeMemoryAllocator implements NativeMemoryAllocator {
 
     @Override
     public Allocation allocate() {
-        return new Allocation();
+        return new HeapAllocation();
     }
 }

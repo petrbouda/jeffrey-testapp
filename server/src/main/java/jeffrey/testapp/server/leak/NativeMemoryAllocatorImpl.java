@@ -9,6 +9,6 @@ public class NativeMemoryAllocatorImpl implements NativeMemoryAllocator {
     @Override
     public Allocation allocate() {
         leakNext ^= true;
-        return new Allocation(ALLOCATION_SIZE, leakNext);
+        return new NativeAllocation(ALLOCATION_SIZE, leakNext);
     }
 }

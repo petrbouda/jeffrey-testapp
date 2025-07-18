@@ -1,21 +1,31 @@
 package jeffrey.testapp.server.leak;
 
 import java.io.Closeable;
+
 public interface NativeMemoryAllocator {
 
     Allocation allocate();
 
-    class Allocation implements Closeable {
+    interface Allocation extends Closeable {
+    }
+
+    class HeapAllocation implements Allocation {
+        @Override
+        public void close() {
+        }
+    }
+
+    class NativeAllocation implements Allocation {
 
         private final long address;
         private final boolean leaked;
 
-        public Allocation() {
+        public NativeAllocation() {
             this.leaked = true;
             this.address = -1;
         }
 
-        public Allocation(long bytes, boolean leaked) {
+        public NativeAllocation(long bytes, boolean leaked) {
             this.address = UnsafeHolder.INSTANCE.allocateMemory(bytes);
             this.leaked = leaked;
         }
