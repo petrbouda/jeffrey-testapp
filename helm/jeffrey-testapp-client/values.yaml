@@ -95,13 +95,13 @@ livenessProbe:
   tcpSocket:
     port: 8080
   periodSeconds: 10
-  failureThreshold: 3
+  failureThreshold: 10
 
 readinessProbe:
   tcpSocket:
     port: 8080
   periodSeconds: 10
-  failureThreshold: 3
+  failureThreshold: 10
 
 nodeSelector: {}
 tolerations: []

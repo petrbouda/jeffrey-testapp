@@ -26,6 +26,7 @@ applicationProperties: |-
   database.file=/var/lib/jeffrey/testapp.db
   database.cleanup-on-shutdown=false
   management.endpoints.web.exposure.include=health
+  management.endpoint.health.probes.enabled=true
 
 # Shared volume — must match the jeffrey-server chart's sharedVolume block exactly
 # (claimName + mountPath). jeffrey-server creates the PV+PVC; testapp pods only
@@ -88,9 +89,15 @@ resources:
 # SQLite DB with ~1000 rows from data.json on every boot, which routinely takes
 # 20–30s on a small node. Once Spring Boot is up, liveness + readiness operate
 # at normal cadence.
+#
+# Probes hit Spring Boot Actuator's dedicated probe groups (LivenessState /
+# ReadinessState from the ApplicationAvailability API) rather than the aggregate
+# /actuator/health, so individual HealthIndicators (e.g. DataSource flapping)
+# don't bounce the pod. Enabled via management.endpoint.health.probes.enabled
+# in applicationProperties above.
 startupProbe:
   httpGet:
-    path: /actuator/health
+    path: /actuator/health/readiness
     port: 8080
   initialDelaySeconds: 5
   periodSeconds: 5
@@ -98,17 +105,17 @@ startupProbe:
 
 livenessProbe:
   httpGet:
-    path: /actuator/health
+    path: /actuator/health/liveness
     port: 8080
   periodSeconds: 10
-  failureThreshold: 3
+  failureThreshold: 10
 
 readinessProbe:
   httpGet:
-    path: /actuator/health
+    path: /actuator/health/readiness
     port: 8080
   periodSeconds: 10
-  failureThreshold: 3
+  failureThreshold: 10
 
 nodeSelector: {}
 tolerations: []
