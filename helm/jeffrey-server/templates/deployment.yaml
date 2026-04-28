@@ -48,10 +48,8 @@ spec:
               value: /jeffrey/application.properties
             - name: JEFFREY_HOME
               value: {{ .Values.sharedVolume.mountPath | quote }}
-            {{- if not .Values.selfProfile.enabled }}
             - name: JEFFREY_ENABLED
-              value: "false"
-            {{- end }}
+              value: {{ .Values.selfProfile.enabled | quote }}
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
