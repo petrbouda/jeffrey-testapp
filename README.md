@@ -17,3 +17,10 @@ Deployed releases (all in the `jeffrey-testapp` namespace):
 - **`direct`** (chart `jeffrey-testapp-server`, `mode=direct`) — SQLite-backed REST app running the efficient `PersonService` (`efficient.mode=true`).
 - **`dom`** (chart `jeffrey-testapp-server`, `mode=dom`) — same app running the inefficient `PersonService` (`efficient.mode=false`); deployed alongside `direct` so a single workload generates two distinct profiles to compare.
 - **`jeffrey-testapp-client`** — single load generator that drives both testapp servers concurrently (each base URL gets its own scheduler).
+
+### Reaching `jeffrey-server` on OrbStack
+
+OrbStack auto-publishes in-cluster Service DNS to the host, so no Ingress controller / `/etc/hosts` edits are needed:
+
+- **HTTP** — `http://jeffrey-server.jeffrey-testapp.svc.cluster.local:8080/` (REST + `/actuator/health`).
+- **gRPC** — `jeffrey-server.jeffrey-testapp.svc.cluster.local:9090` (use plaintext h2c — the in-cluster Service is not TLS-fronted; in `jeffrey-local`'s "Connect Remote Workspace" modal, tick **Use plaintext (no TLS)**).
