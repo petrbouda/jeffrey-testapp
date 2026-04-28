@@ -6,7 +6,7 @@ image:
   repository: petrbouda/jeffrey-server
   # Pin to a specific upstream build. Bump when a newer 0.7.x is pushed
   # (https://hub.docker.com/r/petrbouda/jeffrey-server/tags).
-  tag: 0.7.1-b50
+  tag: 0.7.1-b51
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
