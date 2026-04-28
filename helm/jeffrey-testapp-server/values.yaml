@@ -1,0 +1,115 @@
+# Default values for jeffrey-testapp-server.
+
+# Service-mode toggle: "direct" (efficient.mode=true, EfficientPersonService) or
+# "dom" (efficient.mode=false, InefficientPersonService). Install both side-by-side:
+#   helm upgrade --install jeffrey-testapp-direct-server  helm/jeffrey-testapp-server --set mode=direct
+#   helm upgrade --install jeffrey-testapp-dom-server     helm/jeffrey-testapp-server --set mode=dom
+mode: dom
+
+replicaCount: 1
+
+image:
+  repository: petrbouda/jeffrey-testapp-server
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Spring application.properties overrides (rendered into a ConfigMap and mounted
+# at /app/config/application.properties; activated via SPRING_CONFIG_LOCATION).
+# `efficient.mode` is rendered separately from `mode` above and appended to this block
+# at templating time — do NOT set it here.
+applicationProperties: |-
+  server.port=8080
+  database.file=/var/lib/jeffrey/testapp.db
+  database.cleanup-on-shutdown=false
+  management.endpoints.web.exposure.include=health
+
+# Shared volume — must match the jeffrey-server chart's sharedVolume block exactly
+# (claimName + mountPath). jeffrey-server creates the PV+PVC; testapp pods only
+# bind to the existing claim. The JIB entrypoint wrapper resolves the CLI from
+# ${JEFFREY_HOME}/libs/current/jeffrey-cli-<arch> at container start, where
+# JEFFREY_HOME is injected as an env var equal to sharedVolume.mountPath.
+sharedVolume:
+  claimName: jeffrey-pvc
+  mountPath: /mnt/jeffrey
+
+jeffrey:
+  # HOCON path inside the container (must match JEFFREY_BASE_CONFIG, baked as ENV
+  # default by jeffrey-jib at /jeffrey/jeffrey-base.conf).
+  baseConfigPath: /jeffrey/jeffrey-base.conf
+  # Optional pod-level overrides. Empty = inherit image ENV defaults from jib.
+  env: []
+  # Set JEFFREY_ENABLED=false to bypass profiling at runtime without rebuilding the image.
+  enabled: true
+  # In-cluster host:port of jeffrey-server's HTTP service. The pod's wait-for-jeffrey-server
+  # init container polls http://${serverHost}/actuator/health/readiness and only starts the
+  # main container once it returns 200, so jeffrey-server's copy-libs has finished publishing
+  # the CLI bundle to the shared volume before the JIB entrypoint looks for it.
+  serverHost: jeffrey-server:8080
+
+# SQLite database storage for the server. The app writes <database.file> + .db-wal +
+# .db-shm to this mount.
+database:
+  mountPath: /var/lib/jeffrey
+  # "emptyDir" (ephemeral, default) or "persistentVolumeClaim".
+  type: emptyDir
+  persistentVolumeClaim:
+    claimName: ""
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 8080
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: "1"
+    memory: 1Gi
+
+# Startup probe gates the liveness/readiness probes — testapp-server seeds the
+# SQLite DB with ~1000 rows from data.json on every boot, which routinely takes
+# 20–30s on a small node. Once Spring Boot is up, liveness + readiness operate
+# at normal cadence.
+startupProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 24   # 5 + 24*5 = 125s max boot
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health
+    port: 8080
+  periodSeconds: 10
+  failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

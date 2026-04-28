@@ -1,0 +1,150 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "jeffrey-testapp-server.fullname" . }}
+  labels:
+    {{- include "jeffrey-testapp-server.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "jeffrey-testapp-server.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "jeffrey-testapp-server.labels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "jeffrey-testapp-server.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      {{- if .Values.jeffrey.enabled }}
+      # Block the main container until jeffrey-server reports ready via its actuator
+      # readiness endpoint. By the time the readiness probe passes, jeffrey-server's
+      # copy-libs has published the CLI bundle to the shared volume, so the JIB
+      # entrypoint finds jeffrey-cli + agent + libasyncProfiler on first start
+      # instead of fail-opening (no profiling) for the first minute or two.
+      initContainers:
+        - name: wait-for-jeffrey-server
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              until wget -q --spider "http://${JEFFREY_SERVER_HOST}/actuator/health/readiness"; do
+                echo "waiting for http://${JEFFREY_SERVER_HOST}/actuator/health/readiness ..."
+                sleep 2
+              done
+              echo "jeffrey-server is ready, starting application."
+          env:
+            - name: JEFFREY_SERVER_HOST
+              value: {{ .Values.jeffrey.serverHost | quote }}
+          # requests == limits keeps the pod in QoS class Guaranteed (every
+          # container in the pod, init containers included, must have matching
+          # request/limit pairs). Tiny budget — busybox sleep-loop barely uses any.
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 50m
+              memory: 32Mi
+      {{- end }}
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.containerPort }}
+              protocol: TCP
+          env:
+            # Additional-location MERGES with the image-bundled application.properties
+            # (preserving spring.sql.init.* and other defaults). SPRING_CONFIG_LOCATION
+            # would REPLACE them, which silently drops `spring.sql.init.mode=always`
+            # and the init.sql schema bootstrap.
+            - name: SPRING_CONFIG_ADDITIONAL_LOCATION
+              value: /app/config/application.properties
+            - name: JEFFREY_HOME
+              value: {{ .Values.sharedVolume.mountPath | quote }}
+            - name: JEFFREY_BASE_CONFIG
+              value: {{ .Values.jeffrey.baseConfigPath | quote }}
+            - name: JEFFREY_ENABLED
+              value: {{ .Values.jeffrey.enabled | quote }}
+            - name: JEFFREY_TESTAPP_MODE
+              value: {{ .Values.mode | quote }}
+            {{- with .Values.jeffrey.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: app-config
+              mountPath: /app/config
+              readOnly: true
+            - name: jeffrey-base-config
+              mountPath: {{ .Values.jeffrey.baseConfigPath | dir }}
+              readOnly: true
+            {{- if .Values.jeffrey.enabled }}
+            - name: jeffrey-shared
+              mountPath: {{ .Values.sharedVolume.mountPath }}
+            {{- end }}
+            - name: database
+              mountPath: {{ .Values.database.mountPath }}
+      volumes:
+        - name: app-config
+          configMap:
+            name: {{ include "jeffrey-testapp-server.fullname" . }}-app-config
+            items:
+              - key: application.properties
+                path: application.properties
+        - name: jeffrey-base-config
+          configMap:
+            name: {{ include "jeffrey-testapp-server.fullname" . }}-jeffrey-base
+            items:
+              - key: jeffrey-base.conf
+                path: {{ .Values.jeffrey.baseConfigPath | base }}
+        {{- if .Values.jeffrey.enabled }}
+        - name: jeffrey-shared
+          persistentVolumeClaim:
+            claimName: {{ .Values.sharedVolume.claimName }}
+        {{- end }}
+        - name: database
+          {{- if eq .Values.database.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ .Values.database.persistentVolumeClaim.claimName }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

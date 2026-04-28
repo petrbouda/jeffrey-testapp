@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jeffrey-testapp-server.fullname" . }}-jeffrey-base
+  labels:
+    {{- include "jeffrey-testapp-server.labels" . | nindent 4 }}
+data:
+  jeffrey-base.conf: |-
+{{ .Files.Get "jeffrey-base.conf" | indent 4 }}

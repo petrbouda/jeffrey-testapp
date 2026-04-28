@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "jeffrey-testapp-server.fullname" . }}-app-config
+  labels:
+    {{- include "jeffrey-testapp-server.labels" . | nindent 4 }}
+data:
+  application.properties: |-
+{{ .Values.applicationProperties | indent 4 }}
+    efficient.mode={{ if eq .Values.mode "direct" }}true{{ else }}false{{ end }}

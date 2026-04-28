@@ -1,0 +1,108 @@
+# Default values for jeffrey-testapp-client.
+
+replicaCount: 1
+
+image:
+  repository: petrbouda/jeffrey-testapp-client
+  tag: latest
+  pullPolicy: Always
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Spring application.properties overrides (rendered into a ConfigMap and mounted
+# at /app/config/application.properties; activated via SPRING_CONFIG_LOCATION).
+#
+# `base-urls` is comma-separated; ClientApplication.onApplicationEvent splits it
+# and starts one independent load scheduler per URL. The default targets BOTH
+# server modes — install the server chart twice with release names `direct` and
+# `dom` (see README) and these Service names resolve to:
+#   direct-jeffrey-testapp-server (mode=direct, EfficientPersonService)
+#   dom-jeffrey-testapp-server    (mode=dom,    InefficientPersonService)
+applicationProperties: |-
+  # Override the image-bundled default of 9090 — chart's containerPort and
+  # probes target 8080 to match the server chart.
+  server.port=8080
+  base-urls=http://direct-jeffrey-testapp-server:8080,http://dom-jeffrey-testapp-server:8080
+  load.get-person=20
+  load.get-n-person=100
+  load.add-person=100
+  load.get-person-count=10
+  load.remove-person=125
+  management.endpoints.web.exposure.include=health
+
+# Shared volume — must match the jeffrey-server chart's sharedVolume block exactly
+# (claimName + mountPath). jeffrey-server creates the PV+PVC; testapp pods only
+# bind to the existing claim. The JIB entrypoint wrapper resolves the CLI from
+# ${JEFFREY_HOME}/libs/current/jeffrey-cli-<arch> at container start, where
+# JEFFREY_HOME is injected as an env var equal to sharedVolume.mountPath.
+sharedVolume:
+  claimName: jeffrey-pvc
+  mountPath: /mnt/jeffrey
+
+jeffrey:
+  # HOCON path inside the container (must match JEFFREY_BASE_CONFIG, baked as ENV
+  # default by jeffrey-jib at /jeffrey/jeffrey-base.conf).
+  baseConfigPath: /jeffrey/jeffrey-base.conf
+  # Optional pod-level overrides. Empty = inherit image ENV defaults from jib.
+  env: []
+  # Set JEFFREY_ENABLED=false to bypass profiling at runtime without rebuilding the image.
+  enabled: true
+  # In-cluster host:port of jeffrey-server's HTTP service. The pod's wait-for-jeffrey-server
+  # init container polls http://${serverHost}/actuator/health/readiness and only starts the
+  # main container once it returns 200, so jeffrey-server's copy-libs has finished publishing
+  # the CLI bundle to the shared volume before the JIB entrypoint looks for it.
+  serverHost: jeffrey-server:8080
+
+containerPort: 8080
+
+service:
+  type: ClusterIP
+  port: 8080
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: "1"
+    memory: 1Gi
+
+# TCP socket probes — the client doesn't need /actuator/health gating because it
+# blocks the main thread in onApplicationEvent (waiting for scheduled load
+# threads), which confuses Spring Boot's aggregate health/availability state.
+# The port being bound is sufficient proof of life.
+startupProbe:
+  tcpSocket:
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  failureThreshold: 24   # 5 + 24*5 = 125s max boot
+
+livenessProbe:
+  tcpSocket:
+    port: 8080
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  tcpSocket:
+    port: 8080
+  periodSeconds: 10
+  failureThreshold: 3
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

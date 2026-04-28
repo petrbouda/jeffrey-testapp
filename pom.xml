@@ -17,7 +17,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <springboot.version>3.4.0</springboot.version>
+        <springboot.version>4.0.6</springboot.version>
+        <jib.version>3.5.1</jib.version>
+        <jeffrey-jib.version>0.0.1-b3</jeffrey-jib.version>
     </properties>
 
     <dependencyManagement>
@@ -37,9 +39,9 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.14.0</version>
                 <configuration>
-                    <release>21</release>
+                    <release>25</release>
                 </configuration>
             </plugin>
         </plugins>
@@ -47,36 +49,9 @@
         <pluginManagement>
             <plugins>
                 <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-resources-plugin</artifactId>
-                    <version>3.3.1</version>
-                    <executions>
-                        <execution>
-                            <id>filter-dockerfiles</id>
-                            <phase>process-resources</phase>
-                            <goals>
-                                <goal>copy-resources</goal>
-                            </goals>
-                            <configuration>
-                                <resources>
-                                    <resource>
-                                        <directory>${project.basedir}/src/main/docker</directory>
-                                        <filtering>true</filtering>
-                                        <includes>
-                                            <include>Dockerfile.*</include>
-                                        </includes>
-                                    </resource>
-                                </resources>
-                                <outputDirectory>target/docker</outputDirectory>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-
-                <plugin>
                     <groupId>org.springframework.boot</groupId>
                     <artifactId>spring-boot-maven-plugin</artifactId>
-                    <version>3.4.0</version>
+                    <version>${springboot.version}</version>
                     <executions>
                         <execution>
                             <id>repackage</id>
@@ -88,6 +63,34 @@
                             </configuration>
                         </execution>
                     </executions>
+                </plugin>
+
+                <plugin>
+                    <groupId>com.google.cloud.tools</groupId>
+                    <artifactId>jib-maven-plugin</artifactId>
+                    <version>${jib.version}</version>
+                    <dependencies>
+                        <dependency>
+                            <groupId>cafe.jeffrey-analyst</groupId>
+                            <artifactId>jeffrey-jib-maven</artifactId>
+                            <version>${jeffrey-jib.version}</version>
+                        </dependency>
+                    </dependencies>
+                    <configuration>
+                        <from>
+                            <image>eclipse-temurin:25-jre</image>
+                        </from>
+                        <container>
+                            <ports>
+                                <port>8080</port>
+                            </ports>
+                        </container>
+                        <pluginExtensions>
+                            <pluginExtension>
+                                <implementation>cafe.jeffrey.jib.maven.JeffreyJibMavenExtension</implementation>
+                            </pluginExtension>
+                        </pluginExtensions>
+                    </configuration>
                 </plugin>
             </plugins>
         </pluginManagement>

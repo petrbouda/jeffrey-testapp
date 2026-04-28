@@ -1,6 +1,6 @@
-CREATE TABLE person
+CREATE TABLE IF NOT EXISTS person
 (
-    id                SERIAL PRIMARY KEY,
+    id                INTEGER PRIMARY KEY AUTOINCREMENT,
     firstname         varchar(255),
     lastname          varchar(255),
     city              varchar(255),

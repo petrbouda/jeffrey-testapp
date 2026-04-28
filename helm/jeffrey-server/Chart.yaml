@@ -1,0 +1,10 @@
+apiVersion: v2
+name: jeffrey-server
+description: |
+  Helm chart for Jeffrey Server (formerly jeffrey-console). Owns the shared
+  Jeffrey volume that testapp pods consume via the jeffrey-jib entrypoint
+  wrapper — `copy-libs` publishes `jeffrey-cli-<arch>` into
+  ${JEFFREY_HOME}/libs/current/.
+type: application
+version: 0.2.0
+appVersion: "1.0.0"

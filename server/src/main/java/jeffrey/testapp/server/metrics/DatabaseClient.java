@@ -24,8 +24,8 @@ import cafe.jeffrey.jfr.events.jdbc.statement.JdbcInsertEvent;
 import cafe.jeffrey.jfr.events.jdbc.statement.JdbcQueryEvent;
 import cafe.jeffrey.jfr.events.jdbc.statement.JdbcStreamEvent;
 import cafe.jeffrey.jfr.events.jdbc.statement.JdbcUpdateEvent;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -42,7 +42,7 @@ import java.util.stream.Stream;
 
 public class DatabaseClient {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private final NamedParameterJdbcTemplate delegate;
     private final String groupLabel;

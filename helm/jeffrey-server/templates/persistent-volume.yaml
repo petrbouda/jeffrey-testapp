@@ -1,0 +1,23 @@
+{{- if and .Values.sharedVolume.create .Values.sharedVolume.hostPath.create -}}
+# Local hostPath PV — useful for minikube/kind dev clusters where there is no
+# dynamic RWX provisioner. On real clusters, leave hostPath.create=false and
+# let the StorageClass dynamically provision from a network filesystem
+# (NFS, Azure Files, EFS, etc.) instead.
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: {{ .Values.sharedVolume.claimName }}
+  labels:
+    type: local
+    {{- include "jeffrey-server.labels" . | nindent 4 }}
+spec:
+  # See note in persistent-volume-claim.yaml — must match the PVC's value
+  # (literal "" for static-binding mode, otherwise PV ↔ PVC won't bind).
+  storageClassName: {{ .Values.sharedVolume.storageClassName | quote }}
+  capacity:
+    storage: {{ .Values.sharedVolume.capacity }}
+  accessModes:
+    {{- toYaml .Values.sharedVolume.accessModes | nindent 4 }}
+  hostPath:
+    path: {{ .Values.sharedVolume.hostPath.path | quote }}
+{{- end }}

@@ -1,6 +1,6 @@
 package jeffrey.testapp.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jeffrey.testapp.server.metrics.DatabaseClient;
 import jeffrey.testapp.server.metrics.DatabaseClient.StatementLabel;
 import org.springframework.dao.EmptyResultDataAccessException;
@@ -26,7 +26,7 @@ import java.util.stream.Stream;
 
 public class PersonRepository {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static final String FIND_BY_ID = """
             SELECT * FROM person WHERE id = :id
@@ -38,6 +38,10 @@ public class PersonRepository {
 
     private static final String ALL_QUERY = """
             SELECT * FROM person
+            """;
+
+    private static final String ALL_IDS_QUERY = """
+            SELECT id FROM person
             """;
 
     private static final String COUNT_QUERY = """
@@ -179,6 +183,18 @@ public class PersonRepository {
         databaseClient.queryStream(StatementLabel.ALL_QUERY, ALL_QUERY, personMapper(), consumer);
     }
 
+    public List<Long> findAllIds() {
+        readLock.lock();
+        try {
+            return databaseClient.query(
+                    StatementLabel.ALL_QUERY,
+                    ALL_IDS_QUERY,
+                    (rs, __) -> rs.getLong("id"));
+        } finally {
+            readLock.unlock();
+        }
+    }
+
     /**
      * Execute a single raw statement. Dangerous, use it sparingly and with cautions.
      *
@@ -272,10 +288,7 @@ public class PersonRepository {
     }
 
     private static Long extractId(GeneratedKeyHolder keyHolder) {
-        Object id = keyHolder.getKeys().get("id");
-        if (id instanceof Number) {
-            return ((Number) id).longValue();
-        }
-        return null;
+        Number key = keyHolder.getKey();
+        return key == null ? null : key.longValue();
     }
 }

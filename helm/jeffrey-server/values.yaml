@@ -1,0 +1,129 @@
+# Default values for jeffrey-server.
+
+replicaCount: 1
+
+image:
+  repository: petrbouda/jeffrey-server
+  # Pin to a specific upstream build. Bump when a newer 0.7.x is pushed
+  # (https://hub.docker.com/r/petrbouda/jeffrey-server/tags).
+  tag: 0.7.1-b48
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Shared volume that this server populates and the testapp pods consume.
+# `jeffrey.server.home.dir` (in application.properties) lives at mountPath; copy-libs
+# defaults its target to ${home.dir}/libs, which is what the testapp jeffrey-jib
+# wrapper resolves against (${JEFFREY_HOME}/libs/current/jeffrey-cli-<arch>).
+sharedVolume:
+  # Both fields below MUST match the testapp charts' sharedVolume block exactly
+  # (helm/jeffrey-testapp-{server,client}/values.yaml). All three pods need to
+  # see the same bytes at the same path.
+  claimName: jeffrey-pvc
+  mountPath: /mnt/jeffrey
+  # Whether the chart should create the PVC. Set false to bring your own claim.
+  create: true
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  # Stay below the NFS provisioner's backing PVC size to leave room for the
+  # filesystem overhead — provisioner reports `insufficient available space` if
+  # the request equals the backing size.
+  capacity: 40Gi
+  # Static hostPath PV — only useful on minikube/kind where there is no dynamic
+  # RWX provisioner. Leave create=false on real clusters and let the
+  # StorageClass dynamically provision the underlying volume.
+  hostPath:
+    create: false
+    path: /tmp/jeffrey-data
+
+# Self-profiling. When true, the JIB image's built-in jeffrey-entrypoint runs
+# `jeffrey-cli init` before java boots, populating /tmp/jvm.args with profiling
+# flags resolved from helm/jeffrey-server/jeffrey-base.conf. Set to false to
+# inject JEFFREY_ENABLED=false and bypass profiling entirely.
+selfProfile:
+  enabled: true
+
+containerPort: 8080
+grpcPort: 9090
+
+service:
+  type: ClusterIP
+  httpPort: 8080
+  grpcPort: 9090
+
+# Ingress is jeffrey-server-only — exposes the HTTP API (and optionally gRPC
+# ingestion) so jeffrey-local running on a developer laptop can connect to the
+# in-cluster server. Testapp charts intentionally have no Ingress: those pods
+# only need cluster-internal connectivity to each other and to jeffrey-server's
+# Service.
+ingress:
+  enabled: true
+  className: nginx
+  annotations: {}
+  hosts:
+    - host: jeffrey-server.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# Optional separate gRPC ingress (typically uses backend-protocol: GRPC annotation).
+# Enable when jeffrey-local needs to push recordings into the server.
+grpcIngress:
+  enabled: false
+  className: nginx
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
+  hosts:
+    - host: jeffrey-server-grpc.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+podLabels: {}
+podSecurityContext: {}
+securityContext: {}
+
+resources:
+  limits:
+    cpu: "1"
+    memory: 1Gi
+  requests:
+    cpu: "1"
+    memory: 1Gi
+
+livenessProbe:
+  httpGet:
+    path: /actuator/health/liveness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 60
+  failureThreshold: 10
+
+readinessProbe:
+  httpGet:
+    path: /actuator/health/readiness
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 60
+  failureThreshold: 10
+
+# Extra env passed to the container. SPRING_CONFIG_LOCATION is set by the chart.
+env: []
+
+nodeSelector: {}
+tolerations: []
+affinity: {}

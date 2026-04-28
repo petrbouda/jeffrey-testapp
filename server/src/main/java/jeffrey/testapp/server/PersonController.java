@@ -1,6 +1,6 @@
 package jeffrey.testapp.server;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import jeffrey.testapp.server.service.PersonService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +15,7 @@ import java.util.Optional;
 @RequestMapping(path = "/persons", produces = "application/json")
 public class PersonController {
 
-    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static final Logger LOG = LoggerFactory.getLogger(PersonController.class);
 

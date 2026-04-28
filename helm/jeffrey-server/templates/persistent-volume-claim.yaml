@@ -1,0 +1,22 @@
+{{- if .Values.sharedVolume.create -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ .Values.sharedVolume.claimName }}
+  labels:
+    {{- include "jeffrey-server.labels" . | nindent 4 }}
+spec:
+  # `| quote` is critical: an empty value MUST render as a literal `""` in YAML,
+  # otherwise the field is null and the K8s default-storage-class admission
+  # controller auto-fills it (breaking static binding to the hostPath PV).
+  storageClassName: {{ .Values.sharedVolume.storageClassName | quote }}
+  accessModes:
+    {{- toYaml .Values.sharedVolume.accessModes | nindent 4 }}
+  {{- if .Values.sharedVolume.hostPath.create }}
+  # Static binding to the locally-defined hostPath PV (minikube/kind dev only).
+  volumeName: {{ .Values.sharedVolume.claimName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.sharedVolume.capacity }}
+{{- end }}

@@ -1,8 +1,8 @@
 package jeffrey.testapp.server;
 
 import cafe.jeffrey.jfr.events.http.HttpServerExchangeEvent;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.node.ObjectNode;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -14,7 +14,7 @@ import java.util.Map;
 public class RequestInterceptor implements HandlerInterceptor {
 
     private static final Logger LOG = LoggerFactory.getLogger(RequestInterceptor.class);
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final JsonMapper OBJECT_MAPPER = JsonMapper.builder().build();
 
     private static final String JFR_HTTP_EVENT_ATTRIBUTE = "jfrHttpEvent";
 
