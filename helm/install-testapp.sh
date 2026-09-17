@@ -1,14 +1,10 @@
 #!/usr/bin/env bash
 #
 # Install or upgrade the testapp releases (jeffrey-testapp-server in direct + dom
-# modes, plus jeffrey-testapp-client). Assumes jeffrey-server is already installed
-# — see helm/install-server.sh.
-#
-# Pod-level ordering against jeffrey-server is enforced by an init container on
-# the testapp pods that polls http://jeffrey-server:8080/actuator/health/readiness
-# and blocks until 200 — see helm/jeffrey-testapp-{server,client}/templates/deployment.yaml.
-# That means this script can run before jeffrey-server is fully ready; the testapp
-# pods will simply wait.
+# modes, plus jeffrey-testapp-client). Assumes jeffrey-hub is already installed
+# — see helm/install-hub.sh, though nothing here waits for it: each image carries its
+# own provisioner and async-profiler, so a testapp pod profiles from its first second
+# whether or not the hub is up yet.
 #
 # Usage:
 #   helm/install-testapp.sh                           # jeffrey-testapp namespace (default, created if missing)

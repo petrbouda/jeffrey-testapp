@@ -1,16 +1,16 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "jeffrey-server.fullname" . }}
+  name: {{ include "jeffrey-hub.fullname" . }}
   labels:
-    {{- include "jeffrey-server.labels" . | nindent 4 }}
+    {{- include "jeffrey-hub.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
   strategy:
     type: Recreate
   selector:
     matchLabels:
-      {{- include "jeffrey-server.selectorLabels" . | nindent 6 }}
+      {{- include "jeffrey-hub.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       {{- with .Values.podAnnotations }}
@@ -18,7 +18,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       labels:
-        {{- include "jeffrey-server.labels" . | nindent 8 }}
+        {{- include "jeffrey-hub.labels" . | nindent 8 }}
         {{- with .Values.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -27,7 +27,7 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      serviceAccountName: {{ include "jeffrey-server.serviceAccountName" . }}
+      serviceAccountName: {{ include "jeffrey-hub.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -68,7 +68,7 @@ spec:
       volumes:
         - name: app-config
           configMap:
-            name: {{ include "jeffrey-server.fullname" . }}-config
+            name: {{ include "jeffrey-hub.fullname" . }}-config
         - name: jeffrey-shared
           persistentVolumeClaim:
             claimName: {{ .Values.sharedVolume.claimName }}

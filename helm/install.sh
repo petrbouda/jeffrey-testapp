@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Install or upgrade the full Jeffrey testapp stack (jeffrey-server +
+# Install or upgrade the full Jeffrey testapp stack (jeffrey-hub +
 # jeffrey-testapp-server x2 modes + jeffrey-testapp-client).
 #
 # Usage:
@@ -8,12 +8,11 @@
 #   helm/install.sh my-namespace              # custom namespace, will be created
 #   helm/install.sh my-ns --dry-run --debug   # extra args forwarded to every helm call
 #
-# jeffrey-server creates the shared PVC and populates ${JEFFREY_HOME}/libs/current/
-# via copy-libs (which runs from inside the app after JVM start). Pod-level ordering
-# is enforced by an init container on the testapp pods that polls
-# http://jeffrey-server:8080/actuator/health/readiness and blocks until 200 — see
-# helm/jeffrey-testapp-{server,client}/templates/deployment.yaml. The init script
-# itself can therefore install the releases in any order without operator-side waits.
+# jeffrey-hub creates the shared PVC that the testapp pods write their recordings into.
+# Install order does not matter and no pod waits for another: every application image
+# carries its own provisioner and async-profiler, baked in at build time by jeffrey-jib,
+# so a testapp pod scheduled before jeffrey-hub profiles from its first second and the
+# hub picks the recordings up whenever it arrives.
 
 set -euo pipefail
 
@@ -26,12 +25,12 @@ CHART_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # default `nfs` StorageClass leaves the PVC unbound. Fall back to a static
 # hostPath PV at /tmp/jeffrey-data — `storageClassName=""` is required so the
 # default-storage-class admission controller doesn't auto-fill it and break the
-# static binding (see helm/jeffrey-server/templates/persistent-volume-claim.yaml).
-SERVER_EXTRA=()
+# static binding (see helm/jeffrey-hub/templates/persistent-volume-claim.yaml).
+HUB_EXTRA=()
 CTX="$(kubectl config current-context 2>/dev/null || echo)"
 if [ "$CTX" = "orbstack" ]; then
-    echo "==> orbstack context detected — using hostPath PV for jeffrey-server"
-    SERVER_EXTRA+=(--set sharedVolume.storageClassName="" --set sharedVolume.hostPath.create=true)
+    echo "==> orbstack context detected — using hostPath PV for jeffrey-hub"
+    HUB_EXTRA+=(--set sharedVolume.storageClassName="" --set sharedVolume.hostPath.create=true)
 fi
 
 run() {
@@ -43,7 +42,7 @@ run() {
         "$@"
 }
 
-run jeffrey-server         jeffrey-server          "${SERVER_EXTRA[@]+"${SERVER_EXTRA[@]}"}"  "$@"
+run jeffrey-hub            jeffrey-hub             "${HUB_EXTRA[@]+"${HUB_EXTRA[@]}"}"  "$@"
 run direct                 jeffrey-testapp-server  --set mode=direct   "$@"
 run dom                    jeffrey-testapp-server  --set mode=dom      "$@"
 run jeffrey-testapp-client jeffrey-testapp-client                      "$@"

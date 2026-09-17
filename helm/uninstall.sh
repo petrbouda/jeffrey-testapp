@@ -12,7 +12,7 @@ set -euo pipefail
 NAMESPACE="${1:-jeffrey-testapp}"
 
 # Reverse install order.
-RELEASES=(jeffrey-testapp-client dom direct jeffrey-server)
+RELEASES=(jeffrey-testapp-client dom direct jeffrey-hub)
 
 for release in "${RELEASES[@]}"; do
     echo "==> [$release] helm uninstall"
@@ -22,8 +22,8 @@ done
 # Wipe the shared folder on the cluster node. The hostPath PV uses the
 # default reclaimPolicy=Retain for statically-defined PVs, so the directory
 # contents at /tmp/jeffrey-data persist on disk after helm removes the PV
-# resource — the next install would otherwise inherit a populated
-# ${JEFFREY_HOME}/libs/current/. Only applies to the orbstack/hostPath path
+# resource — the next install would otherwise inherit stale recordings and
+# session directories. Only applies to the orbstack/hostPath path
 # wired up by install.sh; on real clusters the shared volume is dynamically
 # provisioned and follows the StorageClass's reclaim policy.
 CTX="$(kubectl config current-context 2>/dev/null || echo)"

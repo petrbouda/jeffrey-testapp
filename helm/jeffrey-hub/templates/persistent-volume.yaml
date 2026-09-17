@@ -9,7 +9,7 @@ metadata:
   name: {{ .Values.sharedVolume.claimName }}
   labels:
     type: local
-    {{- include "jeffrey-server.labels" . | nindent 4 }}
+    {{- include "jeffrey-hub.labels" . | nindent 4 }}
 spec:
   # See note in persistent-volume-claim.yaml — must match the PVC's value
   # (literal "" for static-binding mode, otherwise PV ↔ PVC won't bind).
