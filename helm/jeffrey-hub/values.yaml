@@ -1,22 +1,22 @@
-# Default values for jeffrey-server.
+# Default values for jeffrey-hub.
 
 replicaCount: 1
 
 image:
-  repository: petrbouda/jeffrey-server
-  # Pin to a specific upstream build. Bump when a newer 0.7.x is pushed
-  # (https://hub.docker.com/r/petrbouda/jeffrey-server/tags).
-  tag: 0.7.1-b64
+  repository: petrbouda/jeffrey-hub
+  # Pin to a specific upstream build for reproducible installs
+  # (https://hub.docker.com/r/petrbouda/jeffrey-hub/tags).
+  tag: latest
   pullPolicy: IfNotPresent
 
 imagePullSecrets: []
 nameOverride: ""
 fullnameOverride: ""
 
-# Shared volume that this server populates and the testapp pods consume.
-# `jeffrey.server.home.dir` (in application.properties) lives at mountPath; copy-libs
-# defaults its target to ${home.dir}/libs, which is what the testapp jeffrey-jib
-# wrapper resolves against (${JEFFREY_HOME}/libs/current/jeffrey-cli-<arch>).
+# Shared volume the testapp pods write their recordings into and this hub reads from.
+# `jeffrey.hub.home.dir` (in application.properties) lives at mountPath. It carries
+# recordings only: every application image already contains its own provisioner and
+# async-profiler, baked in at build time by the jeffrey-jib extension.
 sharedVolume:
   # Both fields below MUST match the testapp charts' sharedVolume block exactly
   # (helm/jeffrey-testapp-{server,client}/values.yaml). All three pods need to
@@ -40,8 +40,8 @@ sharedVolume:
     path: /tmp/jeffrey-data
 
 # Self-profiling. When true, the JIB image's built-in jeffrey-entrypoint runs
-# `jeffrey-cli init` before java boots, populating /tmp/jvm.args with profiling
-# flags resolved from helm/jeffrey-server/jeffrey-base.conf. Set to false to
+# `provisioner init` before java boots, populating /tmp/jvm.args with profiling
+# flags resolved from helm/jeffrey-hub/jeffrey-base.conf. Set to false to
 # inject JEFFREY_ENABLED=false and bypass profiling entirely.
 selfProfile:
   enabled: true
@@ -54,17 +54,17 @@ service:
   httpPort: 8080
   grpcPort: 9090
 
-# Ingress is jeffrey-server-only — exposes the HTTP API (and optionally gRPC
+# Ingress is jeffrey-hub-only — exposes the HTTP API (and optionally gRPC
 # ingestion) so jeffrey-local running on a developer laptop can connect to the
 # in-cluster server. Testapp charts intentionally have no Ingress: those pods
-# only need cluster-internal connectivity to each other and to jeffrey-server's
+# only need cluster-internal connectivity to each other and to jeffrey-hub's
 # Service.
 ingress:
   enabled: true
   className: nginx
   annotations: {}
   hosts:
-    - host: jeffrey-server.local
+    - host: jeffrey-hub.local
       paths:
         - path: /
           pathType: ImplementationSpecific
@@ -78,7 +78,7 @@ grpcIngress:
   annotations:
     nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
   hosts:
-    - host: jeffrey-server-grpc.local
+    - host: jeffrey-hub-grpc.local
       paths:
         - path: /
           pathType: Prefix

@@ -4,7 +4,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: {{ .Values.sharedVolume.claimName }}
   labels:
-    {{- include "jeffrey-server.labels" . | nindent 4 }}
+    {{- include "jeffrey-hub.labels" . | nindent 4 }}
 spec:
   # `| quote` is critical: an empty value MUST render as a literal `""` in YAML,
   # otherwise the field is null and the K8s default-storage-class admission

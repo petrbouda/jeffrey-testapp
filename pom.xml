@@ -19,6 +19,10 @@
 
         <springboot.version>4.0.6</springboot.version>
         <jib.version>3.5.1</jib.version>
+        <!-- The jeffrey-jib release the images are built with. It is also the payloadVersion
+             below, so the provisioner and async-profiler baked into the image come from the
+             payload artifacts published with this very release. Must be a release that ships
+             them: the property is mandatory and the build fails without a resolvable payload. -->
         <jeffrey-jib.version>0.0.1-b3</jeffrey-jib.version>
     </properties>
 
@@ -88,6 +92,13 @@
                         <pluginExtensions>
                             <pluginExtension>
                                 <implementation>cafe.jeffrey.jib.maven.JeffreyJibMavenExtension</implementation>
+                                <properties>
+                                    <!-- Mandatory. Names the jeffrey-jib release whose payload
+                                         artifacts this image carries; the extension bakes the
+                                         provisioner and async-profiler under /opt/jeffrey and
+                                         prints which Jeffrey release they came from. -->
+                                    <payloadVersion>${jeffrey-jib.version}</payloadVersion>
+                                </properties>
                             </pluginExtension>
                         </pluginExtensions>
                     </configuration>
