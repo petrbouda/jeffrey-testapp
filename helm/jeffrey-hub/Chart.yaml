@@ -1,9 +1,0 @@
-apiVersion: v2
-name: jeffrey-hub
-description: |
-  Helm chart for Jeffrey Hub. Owns the shared Jeffrey volume that the testapp pods
-  write their recordings into, and runs its maintenance jobs on it (retention,
-  cleanup, compression).
-type: application
-version: 0.3.0
-appVersion: "1.0.0"

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 #
 # Install or upgrade the testapp releases (jeffrey-testapp-server in direct + dom
-# modes, plus jeffrey-testapp-client). Assumes jeffrey-hub is already installed
-# — see helm/install-hub.sh, though nothing here waits for it: each image carries its
-# own provisioner and async-profiler, so a testapp pod profiles from its first second
-# whether or not the hub is up yet.
+# modes, plus jeffrey-testapp-client). Assumes the shared volume (jeffrey-volume chart,
+# installed by helm/install.sh) already exists: the pods bind to its jeffrey-pvc claim.
+# Each image carries its own provisioner and async-profiler, so a testapp pod profiles
+# from its first second.
 #
 # Usage:
 #   helm/install-testapp.sh                           # jeffrey-testapp namespace (default, created if missing)

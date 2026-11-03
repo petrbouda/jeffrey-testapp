@@ -50,18 +50,18 @@ Check the spans before using a recording: `jfr print --events "jeffrey.*" server
 ## Kubernetes / Helm
 
 ```bash
-helm/install.sh      # install/upgrade jeffrey-hub + testapp-server (direct + dom) + testapp-client into the jeffrey-testapp namespace
+helm/install.sh      # install/upgrade jeffrey-volume + testapp-server (direct + dom) + testapp-client into the jeffrey-testapp namespace
 helm/uninstall.sh    # tear them all down (reverse order; PV/PVC left to the cluster's reclaim policy)
 ```
 
 Deployed releases (all in the `jeffrey-testapp` namespace):
 
-- **`jeffrey-hub`** — the maintenance service of the shared recording volume. Owns the shared `jeffrey-pvc` and runs its scheduler jobs on it (retention, cleanup, compression). Exposes HTTP `8080` for its own Storage and Scheduler pages and `/actuator/health`; it has no API to Microscope.
+- **`jeffrey-volume`** — the shared recording volume: the `jeffrey-pvc` claim the testapp pods write their recordings into, plus a hostPath PV at `/tmp/jeffrey-data` on OrbStack, where there is no RWX provisioner.
 - **`direct`** (chart `jeffrey-testapp-server`, `mode=direct`) — SQLite-backed REST app running the efficient `PersonService` (`efficient.mode=true`).
 - **`dom`** (chart `jeffrey-testapp-server`, `mode=dom`) — same app running the inefficient `PersonService` (`efficient.mode=false`); deployed alongside `direct` so a single workload generates two distinct profiles to compare.
 - **`jeffrey-testapp-client`** — single load generator that drives both testapp servers concurrently (each base URL gets its own scheduler).
 
-Each pod's provisioner config is `helm/<chart>/jeffrey-base.conf` (`tracing`, perf counters, heap dump on crash, JVM options). The project name is set by each Deployment as `JEFFREY_PROJECT_NAME` (`direct-jeffrey-testapp-server`, `dom-jeffrey-testapp-server`, `jeffrey-testapp-client`, `jeffrey-hub`), because jeffrey-jib bakes the artifactId into the image under that variable and an environment variable wins over the config file.
+Each pod's provisioner config is `helm/<chart>/jeffrey-base.conf` (`tracing`, perf counters, heap dump on crash, JVM options). The project name is set by each Deployment as `JEFFREY_PROJECT_NAME` (`direct-jeffrey-testapp-server`, `dom-jeffrey-testapp-server`, `jeffrey-testapp-client`), because jeffrey-jib bakes the artifactId into the image under that variable and an environment variable wins over the config file.
 
 ### Reading the recordings
 
@@ -71,5 +71,3 @@ Microscope reads the volume itself: point its connector at the directory the sha
 jeffrey.microscope.connector.local.path=/tmp/jeffrey-data
 jeffrey.microscope.connector.local.read-only=true
 ```
-
-The hub's UI is at `http://jeffrey-hub.jeffrey-testapp.svc.cluster.local:8080/` on OrbStack, which publishes in-cluster Service DNS to the host.
