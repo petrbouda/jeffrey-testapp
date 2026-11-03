@@ -120,10 +120,16 @@
                         <pluginExtensions>
                             <pluginExtension>
                                 <implementation>cafe.jeffrey.jib.maven.JeffreyJibMavenExtension</implementation>
-                                <!-- No <configuration>: every property is optional and the defaults
-                                     already match the Helm charts. The base config is read from
-                                     /jeffrey/jeffrey-base.conf (mounted from a ConfigMap), JEFFREY_HOME
-                                     is set by the pod, and the project name comes from that file. -->
+                                <!-- Every value here is baked as an image ENV default, which a pod's
+                                     own env var still overrides. jeffreyHome is the shared volume's
+                                     mount point (JEFFREY_HOME), so the image profiles wherever that
+                                     volume is mounted, Helm or not; it matches sharedVolume.mountPath
+                                     in the charts. The base config stays at its default,
+                                     /jeffrey/jeffrey-base.conf (a ConfigMap), and JEFFREY_PROJECT_NAME
+                                     defaults to the artifactId, which the Deployments override. -->
+                                <configuration implementation="cafe.jeffrey.jib.JeffreyJibConfig">
+                                    <jeffreyHome>/mnt/jeffrey</jeffreyHome>
+                                </configuration>
                             </pluginExtension>
                         </pluginExtensions>
                     </configuration>
