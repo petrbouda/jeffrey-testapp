@@ -1,26 +1,73 @@
 # Jeffrey - Test App to generate JFR Recordings
 
-A two-module Spring Boot 4 setup used to exercise [Jeffrey](https://www.jeffrey-analyst.cafe)'s profiling and JFR-recording flow. The `server` module is a SQLite-backed REST app; the `client` module drives load against it.
+A two-module Spring Boot 4 setup used to exercise [Jeffrey](https://www.jeffrey-analyst.cafe)'s profiling and JFR-recording flow, and to produce the example recordings Jeffrey ships with. The `server` module is a SQLite-backed REST app; the `client` module drives load against it.
 
-Container images are produced with **JIB** + the `cafe.jeffrey-analyst:jeffrey-jib-maven` extension, which wraps the entrypoint so [Jeffrey](https://github.com/petrbouda/jeffrey) profiling initialises automatically. No Dockerfile and no shell script: the extension also bakes the provisioner and async-profiler into the image under `/opt/jeffrey`, so a pod needs nothing from the cluster to start profiling. The shared volume carries recordings only.
+Container images are produced with **JIB** + the `cafe.jeffrey-analyst:jeffrey-jib-maven-jar` extension, which wraps the entrypoint so [Jeffrey](https://github.com/petrbouda/jeffrey) profiling initialises automatically. No Dockerfile and no shell script: the extension also bakes the provisioner and async-profiler into the image under `/opt/jeffrey`, so a pod needs nothing from the cluster to start profiling. The shared volume carries recordings only.
+
+## Versions
+
+| What | Version | Where |
+|---|---|---|
+| `jeffrey-events`, `jeffrey-tracing-*` | 0.27.0 | `jeffrey.version` in `pom.xml` (one version, they release together) |
+| `jeffrey-jib-maven-jar` | 0.7.0 (provisioner from Jeffrey v0.14.8, async-profiler 4.1) | `jeffrey-jib.version` in `pom.xml` |
+| Spring Boot | 4.1.2 | `springboot.version` |
+| Java | 25 | `eclipse-temurin:25-jre` base image |
+
+## What the recordings contain
+
+Both apps depend on `jeffrey-events`, `jeffrey-tracing-spring-boot-starter` and `jeffrey-tracing-scoped-value` (the `ScopedValue` span storage, which takes over from the starter's `ThreadLocal` one on Java 25).
+
+**Server** (`jeffrey-testapp-server`):
+
+- **Traces** — the starter's servlet filter records every request as `jeffrey.HttpServerExchange` and opens it as the root span, named by the matched route (`GET /persons/{count}`). Query and path parameters are captured, and every request span carries a `testapp.mode` attribute (`direct` | `dom`), so the two modes are a facet in Traces → Attributes.
+- **Hand-written spans** (`Tracer`) between the request and its SQL:
+  - `person.pick-id` / `person.pick-ids` — in `dom` mode they hold an extra `count_query` statement, in `direct` mode none; same name, so the two line up.
+  - `person.redact-opinions` — the regex over the loaded rows.
+  - `person.to-json-tree` — the `dom` mode's detour through `JsonNode`, so its garbage is attributed to a span.
+- **JDBC** — `DatabaseClient` emits a labelled `jeffrey.Jdbc*` event per statement (`find_by_id`, `insert_person`, …, grouped under `person-repository`) with parameters and row counts, nested under the span in progress. The starter's `DataSource` wrapper is turned off (`jeffrey.tracing.jdbc-enabled=false`) so nothing is recorded twice.
+- **Connection pool** — the starter gives the HikariCP pool its JFR metrics tracker: acquired/borrowed/created/timeout events and the periodic `jeffrey.JdbcPoolStatistics`.
+- **Backup job** — every `backup.interval` (default `5m`) the whole table is dumped, deleted and re-inserted row by row under the write lock: one `person.backup-and-reload` trace with ~1,000 `backup_load` inserts (an N+1 shape to find), every request blocked on the lock meanwhile, and a `jeffrey.Notification` (`PERSON_BACKUP_RELOADED`) recorded inside that span.
+- `--native-memory-leak.mode=true` leaks every other native allocation and records a `NATIVE_MEMORY_LEAK_MODE_ENABLED` notification at startup.
+
+**Client** (`jeffrey-testapp-client`): every scheduled load task is the root span of its own trace (`load.get-person`, `load.remove-person`, …), with each outbound call recorded as a `jeffrey.HttpClientExchange` leaf by the starter's `JfrClientHttpRequestInterceptor` (numeric path segments collapsed to `{n}`). `GET /persons` returns 404 for ids the client has already removed, so some traces are `ERROR`.
+
+## Running locally
+
+```bash
+mvn package -DskipTests
+```
+
+```bash
+java -XX:StartFlightRecording=filename=server.jfr,settings=profile -jar server/target/runner.jar --efficient.mode=false --backup.interval=1m
+```
+
+```bash
+java -XX:StartFlightRecording=filename=client.jfr,settings=profile -jar client/target/runner.jar
+```
+
+Check the spans before using a recording: `jfr print --events "jeffrey.*" server.jfr`.
 
 ## Kubernetes / Helm
 
 ```bash
-helm/install.sh      # install/upgrade jeffrey-hub + testapp-server (direct + dom) + testapp-client into the jeffrey-testapp namespace
+helm/install.sh      # install/upgrade jeffrey-volume + testapp-server (direct + dom) + testapp-client into the jeffrey-testapp namespace
 helm/uninstall.sh    # tear them all down (reverse order; PV/PVC left to the cluster's reclaim policy)
 ```
 
 Deployed releases (all in the `jeffrey-testapp` namespace):
 
-- **`jeffrey-hub`** — the upstream Jeffrey collector. Owns the shared `jeffrey-pvc` and reconciles the recordings the testapp pods write into it. Exposes HTTP `8080` (REST + actuator) and gRPC `9090` (workspace/recording ingestion).
+- **`jeffrey-volume`** — the shared recording volume: the `jeffrey-pvc` claim the testapp pods write their recordings into, plus a hostPath PV at `/tmp/jeffrey-data` on OrbStack, where there is no RWX provisioner.
 - **`direct`** (chart `jeffrey-testapp-server`, `mode=direct`) — SQLite-backed REST app running the efficient `PersonService` (`efficient.mode=true`).
 - **`dom`** (chart `jeffrey-testapp-server`, `mode=dom`) — same app running the inefficient `PersonService` (`efficient.mode=false`); deployed alongside `direct` so a single workload generates two distinct profiles to compare.
 - **`jeffrey-testapp-client`** — single load generator that drives both testapp servers concurrently (each base URL gets its own scheduler).
 
-### Reaching `jeffrey-hub` on OrbStack
+Each pod's provisioner config is `helm/<chart>/jeffrey-base.conf` (`tracing`, perf counters, heap dump on crash, JVM options). The project name is set by each Deployment as `JEFFREY_PROJECT_NAME` (`direct-jeffrey-testapp-server`, `dom-jeffrey-testapp-server`, `jeffrey-testapp-client`), because jeffrey-jib bakes the artifactId into the image under that variable and an environment variable wins over the config file.
 
-OrbStack auto-publishes in-cluster Service DNS to the host, so no Ingress controller / `/etc/hosts` edits are needed:
+### Reading the recordings
 
-- **HTTP** — `http://jeffrey-hub.jeffrey-testapp.svc.cluster.local:8080/` (REST + `/actuator/health`).
-- **gRPC** — `jeffrey-hub.jeffrey-testapp.svc.cluster.local:9090` (use plaintext h2c — the in-cluster Service is not TLS-fronted; in Jeffrey Microscope's "Connect Remote Workspace" modal, tick **Use plaintext (no TLS)**).
+Microscope reads the volume itself: point its connector at the directory the shared volume is in (with the OrbStack setup, the hostPath PV at `/tmp/jeffrey-data` on the cluster node), or at a copy of it:
+
+```properties
+jeffrey.microscope.connector.local.path=/tmp/jeffrey-data
+jeffrey.microscope.connector.local.read-only=true
+```

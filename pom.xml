@@ -17,13 +17,15 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <springboot.version>4.0.6</springboot.version>
-        <jib.version>3.5.1</jib.version>
-        <!-- The jeffrey-jib release the images are built with. It is also the payloadVersion
-             below, so the provisioner and async-profiler baked into the image come from the
-             payload artifacts published with this very release. Must be a release that ships
-             them: the property is mandatory and the build fails without a resolvable payload. -->
-        <jeffrey-jib.version>0.0.1-b3</jeffrey-jib.version>
+        <springboot.version>4.1.2</springboot.version>
+        <jib.version>3.5.2</jib.version>
+        <!-- jeffrey-events and the jeffrey-tracing-* libraries release together, on one version. -->
+        <jeffrey.version>0.27.0</jeffrey.version>
+        <!-- The jeffrey-jib release the images are built with. jeffrey-jib releases on its own
+             cadence: the flavour declared below carries the provisioner and async-profiler that
+             release was cut with (0.7.0 = provisioner from jeffrey v0.14.8, async-profiler 4.1),
+             and the build prints both while baking them into the image. -->
+        <jeffrey-jib.version>0.7.0</jeffrey-jib.version>
     </properties>
 
     <dependencyManagement>
@@ -35,6 +37,29 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
+
+            <!-- The JFR event types (HTTP, JDBC, connection pool, notifications) and the Tracer API. -->
+            <dependency>
+                <groupId>cafe.jeffrey-analyst</groupId>
+                <artifactId>jeffrey-events</artifactId>
+                <version>${jeffrey.version}</version>
+            </dependency>
+            <!-- One dependency, no code: roots a trace per inbound request (servlet filter), gives
+                 HikariCP pools a JFR metrics tracker, wraps DataSources, and offers the
+                 JfrClientHttpRequestInterceptor bean for outbound calls. Brings the ThreadLocal
+                 span storage so it works on any JVM from 21. -->
+            <dependency>
+                <groupId>cafe.jeffrey-analyst</groupId>
+                <artifactId>jeffrey-tracing-spring-boot-starter</artifactId>
+                <version>${jeffrey.version}</version>
+            </dependency>
+            <!-- On Java 25 the ScopedValue span storage takes over from the starter's ThreadLocal
+                 one: it has the higher priority, so it wins when both are on the class path. -->
+            <dependency>
+                <groupId>cafe.jeffrey-analyst</groupId>
+                <artifactId>jeffrey-tracing-scoped-value</artifactId>
+                <version>${jeffrey.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -43,7 +68,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
+                <version>3.16.0</version>
                 <configuration>
                     <release>25</release>
                 </configuration>
@@ -76,7 +101,10 @@
                     <dependencies>
                         <dependency>
                             <groupId>cafe.jeffrey-analyst</groupId>
-                            <artifactId>jeffrey-jib-maven</artifactId>
+                            <!-- The flavour picks the provisioner build: -jar (one ~4 MB jar that runs
+                                 on the application's own Java 25, fits single- and multi-arch images)
+                                 or -native (GraalVM binary per architecture). -->
+                            <artifactId>jeffrey-jib-maven-jar</artifactId>
                             <version>${jeffrey-jib.version}</version>
                         </dependency>
                     </dependencies>
@@ -92,13 +120,10 @@
                         <pluginExtensions>
                             <pluginExtension>
                                 <implementation>cafe.jeffrey.jib.maven.JeffreyJibMavenExtension</implementation>
-                                <properties>
-                                    <!-- Mandatory. Names the jeffrey-jib release whose payload
-                                         artifacts this image carries; the extension bakes the
-                                         provisioner and async-profiler under /opt/jeffrey and
-                                         prints which Jeffrey release they came from. -->
-                                    <payloadVersion>${jeffrey-jib.version}</payloadVersion>
-                                </properties>
+                                <!-- No <configuration>: every property is optional and the defaults
+                                     already match the Helm charts. The base config is read from
+                                     /jeffrey/jeffrey-base.conf (mounted from a ConfigMap), JEFFREY_HOME
+                                     is set by the pod, and the project name comes from that file. -->
                             </pluginExtension>
                         </pluginExtensions>
                     </configuration>

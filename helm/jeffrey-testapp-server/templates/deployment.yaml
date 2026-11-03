@@ -51,8 +51,9 @@ spec:
               value: {{ .Values.jeffrey.baseConfigPath | quote }}
             - name: JEFFREY_ENABLED
               value: {{ .Values.jeffrey.enabled | quote }}
-            - name: JEFFREY_TESTAPP_MODE
-              value: {{ .Values.mode | quote }}
+            # One project per mode, so direct and dom are two projects to compare.
+            - name: JEFFREY_PROJECT_NAME
+              value: {{ printf "%s-jeffrey-testapp-server" .Values.mode | quote }}
             {{- with .Values.jeffrey.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

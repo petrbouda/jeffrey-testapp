@@ -1,5 +1,7 @@
 package jeffrey.testapp.server;
 
+import cafe.jeffrey.jfr.events.trace.Tracer;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
 import jeffrey.testapp.server.service.PersonService;
 import org.slf4j.Logger;
@@ -18,6 +20,12 @@ public class PersonController {
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
 
     private static final Logger LOG = LoggerFactory.getLogger(PersonController.class);
+
+    /**
+     * The "dom" mode's detour through a JSON tree, as its own span: the garbage it creates is
+     * attributed to this span's flamegraph and allocations in Jeffrey.
+     */
+    private static final String SPAN_TO_JSON_TREE = "person.to-json-tree";
 
     private final boolean efficientMode;
     private final PersonService service;
@@ -45,7 +53,7 @@ public class PersonController {
         if (efficientMode) {
             return ResponseEntity.of(personOpt);
         } else {
-            return ResponseEntity.of(personOpt.map(MAPPER::valueToTree));
+            return ResponseEntity.of(personOpt.map(PersonController::toJsonTree));
         }
     }
 
@@ -60,7 +68,7 @@ public class PersonController {
         if (efficientMode) {
             return ResponseEntity.of(Optional.of(persons));
         } else {
-            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(persons)));
+            return ResponseEntity.of(Optional.of(toJsonTree(persons)));
         }
     }
 
@@ -72,7 +80,7 @@ public class PersonController {
         if (efficientMode) {
             return ResponseEntity.of(Optional.of(addedPerson));
         } else {
-            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(addedPerson)));
+            return ResponseEntity.of(Optional.of(toJsonTree(addedPerson)));
         }
     }
 
@@ -84,7 +92,7 @@ public class PersonController {
         if (efficientMode) {
             return ResponseEntity.of(Optional.of(count));
         } else {
-            return ResponseEntity.of(Optional.of(MAPPER.valueToTree(count)));
+            return ResponseEntity.of(Optional.of(toJsonTree(count)));
         }
     }
 
@@ -97,5 +105,9 @@ public class PersonController {
     @PostMapping("/reload")
     public void resetAndLoadSnapshot() {
         throw new UnsupportedOperationException();
+    }
+
+    private static JsonNode toJsonTree(Object value) {
+        return Tracer.call(SPAN_TO_JSON_TREE, () -> MAPPER.valueToTree(value));
     }
 }

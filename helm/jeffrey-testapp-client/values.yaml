@@ -32,9 +32,9 @@ applicationProperties: |-
   load.remove-person=125
   management.endpoints.web.exposure.include=health
 
-# Shared volume — must match the jeffrey-hub chart's sharedVolume block exactly
-# (claimName + mountPath). jeffrey-hub creates the PV+PVC; testapp pods only bind to the
-# existing claim and write their recordings into it. No binary travels this way: the
+# Shared volume — claimName must match the jeffrey-volume chart's sharedVolume.claimName.
+# jeffrey-volume creates the PV+PVC; testapp pods only bind to the existing claim and
+# write their recordings into it. No binary travels this way: the
 # provisioner and async-profiler are baked into the image by jeffrey-jib. JEFFREY_HOME is
 # injected as an env var equal to sharedVolume.mountPath.
 sharedVolume:

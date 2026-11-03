@@ -1,0 +1,8 @@
+apiVersion: v2
+name: jeffrey-volume
+description: |
+  The shared Jeffrey recording volume (PVC, plus a hostPath PV on local clusters)
+  that the testapp pods write their recordings into.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

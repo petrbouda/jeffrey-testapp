@@ -12,7 +12,7 @@ set -euo pipefail
 NAMESPACE="${1:-jeffrey-testapp}"
 
 # Reverse install order.
-RELEASES=(jeffrey-testapp-client dom direct jeffrey-hub)
+RELEASES=(jeffrey-testapp-client dom direct jeffrey-volume)
 
 for release in "${RELEASES[@]}"; do
     echo "==> [$release] helm uninstall"

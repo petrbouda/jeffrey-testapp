@@ -56,7 +56,14 @@
         <dependency>
             <groupId>cafe.jeffrey-analyst</groupId>
             <artifactId>jeffrey-events</artifactId>
-            <version>0.10.0</version>
+        </dependency>
+        <dependency>
+            <groupId>cafe.jeffrey-analyst</groupId>
+            <artifactId>jeffrey-tracing-spring-boot-starter</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cafe.jeffrey-analyst</groupId>
+            <artifactId>jeffrey-tracing-scoped-value</artifactId>
         </dependency>
     </dependencies>
     <build>

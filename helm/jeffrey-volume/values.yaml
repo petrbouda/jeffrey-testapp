@@ -1,0 +1,22 @@
+# Shared volume the testapp pods write their recordings into. It carries recordings only:
+# every application image already contains its own provisioner and async-profiler, baked in
+# at build time by the jeffrey-jib extension.
+sharedVolume:
+  # MUST match the testapp charts' sharedVolume.claimName
+  # (helm/jeffrey-testapp-{server,client}/values.yaml).
+  claimName: jeffrey-pvc
+  # Whether the chart should create the PVC. Set false to bring your own claim.
+  create: true
+  storageClassName: nfs
+  accessModes:
+    - ReadWriteMany
+  # Stay below the NFS provisioner's backing PVC size to leave room for the
+  # filesystem overhead — provisioner reports `insufficient available space` if
+  # the request equals the backing size.
+  capacity: 40Gi
+  # Static hostPath PV — only useful on local clusters (orbstack, minikube, kind) where there
+  # is no dynamic RWX provisioner. Leave create=false on real clusters and let the
+  # StorageClass dynamically provision the underlying volume.
+  hostPath:
+    create: false
+    path: /tmp/jeffrey-data
