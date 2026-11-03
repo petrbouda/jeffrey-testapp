@@ -49,6 +49,8 @@ spec:
               value: {{ .Values.jeffrey.baseConfigPath | quote }}
             - name: JEFFREY_ENABLED
               value: {{ .Values.jeffrey.enabled | quote }}
+            - name: JEFFREY_PROJECT_NAME
+              value: "jeffrey-testapp-client"
             {{- with .Values.jeffrey.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

@@ -9,6 +9,7 @@ import org.springframework.boot.jdbc.autoconfigure.JdbcTemplateAutoConfiguration
 import org.springframework.boot.context.event.ApplicationStartedEvent;
 import org.springframework.context.ApplicationListener;
 
+import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -17,6 +18,9 @@ import java.util.concurrent.TimeUnit;
 public class ServerApplication implements ApplicationListener<ApplicationStartedEvent> {
 
     private static final Logger LOG = LoggerFactory.getLogger(ServerApplication.class);
+
+    private static final String BACKUP_INTERVAL_PROPERTY = "backup.interval";
+    private static final Duration DEFAULT_BACKUP_INTERVAL = Duration.ofMinutes(5);
 
     public static void main(String[] args) {
         SpringApplication app = new SpringApplication(ServerApplication.class);
@@ -33,11 +37,14 @@ public class ServerApplication implements ApplicationListener<ApplicationStarted
         IDHolder.IDS.addAll(repository.findAllIds());
         LOG.info("Loaded {} person IDs from database", IDHolder.IDS.size());
 
+        Duration interval = event.getApplicationContext().getEnvironment()
+                .getProperty(BACKUP_INTERVAL_PROPERTY, Duration.class, DEFAULT_BACKUP_INTERVAL);
+
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor(new NamedThreadFactory("backup"));
         executor.scheduleAtFixedRate(() -> {
             LOG.info("Backup and Reloading Initiated");
             repository.backupAndReload();
             LOG.info("Backup and Reloading Finished");
-        }, 5, 5, TimeUnit.MINUTES);
+        }, interval.toMillis(), interval.toMillis(), TimeUnit.MILLISECONDS);
     }
 }

@@ -40,9 +40,6 @@ spec:
             - name: http
               containerPort: {{ .Values.containerPort }}
               protocol: TCP
-            - name: grpc
-              containerPort: {{ .Values.grpcPort }}
-              protocol: TCP
           env:
             - name: SPRING_CONFIG_LOCATION
               value: /jeffrey/application.properties
@@ -50,6 +47,8 @@ spec:
               value: {{ .Values.sharedVolume.mountPath | quote }}
             - name: JEFFREY_ENABLED
               value: {{ .Values.selfProfile.enabled | quote }}
+            - name: JEFFREY_PROJECT_NAME
+              value: "jeffrey-hub"
             {{- with .Values.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}

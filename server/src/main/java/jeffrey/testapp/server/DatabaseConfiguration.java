@@ -1,10 +1,6 @@
 package jeffrey.testapp.server;
 
-import com.zaxxer.hikari.HikariConfig;
-import com.zaxxer.hikari.metrics.PoolStats;
-import jeffrey.testapp.server.metrics.JfrHikariDataSource;
-import jeffrey.testapp.server.metrics.JfrPoolMetricsTracker;
-import jeffrey.testapp.server.metrics.JfrPoolStatisticsPeriodicRecorder;
+import com.zaxxer.hikari.HikariDataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.sqlite.SQLiteConfig;
@@ -22,15 +18,23 @@ public class DatabaseConfiguration {
 
     private static final Logger LOG = LoggerFactory.getLogger(DatabaseConfiguration.class);
 
+    private static final String POOL_NAME = "testapp-sqlite";
+
     private static final SQLiteConfig.JournalMode JOURNAL_MODE = SQLiteConfig.JournalMode.WAL;
     private static final SQLiteConfig.SynchronousMode SYNCHRONOUS = SQLiteConfig.SynchronousMode.NORMAL;
     private static final int BUSY_TIMEOUT_MS = 5000;
-    private static final int CACHE_SIZE_KB = 65536;
     private static final SQLiteConfig.TempStore TEMP_STORE = SQLiteConfig.TempStore.MEMORY;
     private static final boolean FOREIGN_KEYS = true;
 
+    /**
+     * The pool is created with the no-arg constructor and configured through setters, so it does
+     * not start until the first connection is borrowed. That leaves it un-started when
+     * jeffrey-tracing-spring-boot-starter's bean post-processor sees it, which is when it attaches
+     * its JFR metrics tracker: connection created/acquired/borrowed/timeout events plus the periodic
+     * {@code jeffrey.JdbcPoolStatistics} event, all of which feed Jeffrey's connection-pool dashboard.
+     */
     @Bean(destroyMethod = "close")
-    public JfrHikariDataSource dataSource(
+    public HikariDataSource dataSource(
             @Value("${database.file}") String file,
             @Value("${database.cleanup-on-shutdown:true}") boolean cleanupOnShutdown,
             @Value("${database.pool.max-size:10}") int maxPoolSize,
@@ -49,17 +53,12 @@ public class DatabaseConfiguration {
         SQLiteDataSource sqliteDataSource = new SQLiteDataSource(sqliteConfig);
         sqliteDataSource.setUrl("jdbc:sqlite:" + dbPath);
 
-        HikariConfig config = new HikariConfig();
-        config.setDataSource(sqliteDataSource);
-        config.setMaximumPoolSize(maxPoolSize);
-        config.setMinimumIdle(minIdle);
-        config.setMetricsTrackerFactory((String poolName, PoolStats poolStats) -> {
-            JfrPoolStatisticsPeriodicRecorder.addPool(poolName, poolStats);
-            return new JfrPoolMetricsTracker(poolName);
-        });
-
-        JfrPoolStatisticsPeriodicRecorder.registerToFlightRecorder();
-        return new CleanupAwareDataSource(config, dbPath, cleanupOnShutdown);
+        CleanupAwareDataSource dataSource = new CleanupAwareDataSource(dbPath, cleanupOnShutdown);
+        dataSource.setPoolName(POOL_NAME);
+        dataSource.setDataSource(sqliteDataSource);
+        dataSource.setMaximumPoolSize(maxPoolSize);
+        dataSource.setMinimumIdle(minIdle);
+        return dataSource;
     }
 
     private static void ensureParentDirectory(Path dbPath) {
@@ -74,12 +73,14 @@ public class DatabaseConfiguration {
         }
     }
 
-    static final class CleanupAwareDataSource extends JfrHikariDataSource {
+    static final class CleanupAwareDataSource extends HikariDataSource {
+
+        private static final String[] SQLITE_FILE_SUFFIXES = {"", "-wal", "-shm"};
+
         private final Path file;
         private final boolean cleanupOnShutdown;
 
-        CleanupAwareDataSource(HikariConfig config, Path file, boolean cleanupOnShutdown) {
-            super(config);
+        CleanupAwareDataSource(Path file, boolean cleanupOnShutdown) {
             this.file = file;
             this.cleanupOnShutdown = cleanupOnShutdown;
         }
@@ -94,12 +95,12 @@ public class DatabaseConfiguration {
 
         private void deleteSqliteFiles() {
             String base = file.toString();
-            for (String suffix : new String[]{"", "-wal", "-shm"}) {
+            for (String suffix : SQLITE_FILE_SUFFIXES) {
                 Path path = Path.of(base + suffix);
                 try {
                     Files.deleteIfExists(path);
                 } catch (IOException ex) {
-                    LOG.warn("Failed to delete SQLite file {}: {}", path, ex.toString());
+                    LOG.warn("Failed to delete SQLite file: path={} error={}", path, ex.toString());
                 }
             }
         }

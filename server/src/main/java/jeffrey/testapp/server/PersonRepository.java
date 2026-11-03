@@ -1,5 +1,9 @@
 package jeffrey.testapp.server;
 
+import cafe.jeffrey.jfr.events.notification.NotificationEvent;
+import cafe.jeffrey.jfr.events.notification.Severity;
+import cafe.jeffrey.jfr.events.trace.EventAttributes;
+import cafe.jeffrey.jfr.events.trace.Tracer;
 import tools.jackson.databind.json.JsonMapper;
 import jeffrey.testapp.server.metrics.DatabaseClient;
 import jeffrey.testapp.server.metrics.DatabaseClient.StatementLabel;
@@ -20,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
@@ -27,6 +32,18 @@ import java.util.stream.Stream;
 public class PersonRepository {
 
     private static final JsonMapper MAPPER = JsonMapper.builder().build();
+
+    private static final String GROUP_LABEL = "person-repository";
+
+    // Span names: stable and low-cardinality, they name the operation, never the entity
+    private static final String SPAN_REDACT_OPINIONS = "person.redact-opinions";
+    private static final String SPAN_BACKUP_AND_RELOAD = "person.backup-and-reload";
+    private static final String SPAN_BACKUP_WRITE_LOCK = "person.backup.acquire-write-lock";
+    private static final String SPAN_BACKUP_DUMP = "person.backup.dump";
+    private static final String SPAN_BACKUP_LOAD = "person.backup.load";
+
+    private static final String NOTIFICATION_BACKUP_RELOADED = "PERSON_BACKUP_RELOADED";
+    private static final String NOTIFICATION_CATEGORY = "MAINTENANCE";
 
     private static final String FIND_BY_ID = """
             SELECT * FROM person WHERE id = :id
@@ -73,7 +90,7 @@ public class PersonRepository {
     private final Map<Person, Boolean> cache = new ConcurrentHashMap<>();
 
     public PersonRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-        this.databaseClient = new DatabaseClient(jdbcTemplate, "person-repository");
+        this.databaseClient = new DatabaseClient(jdbcTemplate, GROUP_LABEL);
         try {
             this.backupFile = Files.createTempFile("jeffrey-testapp", null);
         } catch (IOException e) {
@@ -94,7 +111,7 @@ public class PersonRepository {
             Optional<Person> personOpt = databaseClient.querySingle(
                     StatementLabel.FIND_BY_ID, FIND_BY_ID, params, personMapper());
 
-            return personOpt.map(PersonRepository::modifyOpinion);
+            return Tracer.call(SPAN_REDACT_OPINIONS, () -> personOpt.map(PersonRepository::modifyOpinion));
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         } finally {
@@ -112,9 +129,12 @@ public class PersonRepository {
         readLock.lock();
         try {
             SqlParameterSource params = new MapSqlParameterSource("ids", ids);
-            return databaseClient.query(StatementLabel.FIND_ALL_BY_IDS, FIND_ALL_BY_IDS, params, personMapper()).stream()
+            List<Person> persons = databaseClient.query(
+                    StatementLabel.FIND_ALL_BY_IDS, FIND_ALL_BY_IDS, params, personMapper());
+
+            return Tracer.call(SPAN_REDACT_OPINIONS, () -> persons.stream()
                     .map(PersonRepository::modifyOpinion)
-                    .toList();
+                    .toList());
         } finally {
             readLock.unlock();
         }
@@ -156,6 +176,10 @@ public class PersonRepository {
      * @return full populated person with a new ID
      */
     public Person insert(Person person) {
+        return insert(StatementLabel.INSERT_PERSON, person);
+    }
+
+    private Person insert(StatementLabel statement, Person person) {
         readLock.lock();
         try {
             Map<String, Object> parameters = Map.of(
@@ -167,7 +191,7 @@ public class PersonRepository {
                     "political_opinion", person.politicalOpinion());
 
             GeneratedKeyHolder keyHolder = new GeneratedKeyHolder();
-            databaseClient.update(StatementLabel.INSERT_PERSON, INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
+            databaseClient.update(statement, INSERT_PERSON, new MapSqlParameterSource(parameters), keyHolder);
             Long id = extractId(keyHolder);
             IDHolder.IDS.add(id);
             return person.copyWithId(id);
@@ -180,14 +204,14 @@ public class PersonRepository {
      * Streams all persons from the table.
      */
     private void streamAll(Consumer<Person> consumer) {
-        databaseClient.queryStream(StatementLabel.ALL_QUERY, ALL_QUERY, personMapper(), consumer);
+        databaseClient.queryStream(StatementLabel.BACKUP_DUMP, ALL_QUERY, personMapper(), consumer);
     }
 
     public List<Long> findAllIds() {
         readLock.lock();
         try {
             return databaseClient.query(
-                    StatementLabel.ALL_QUERY,
+                    StatementLabel.ALL_IDS_QUERY,
                     ALL_IDS_QUERY,
                     (rs, __) -> rs.getLong("id"));
         } finally {
@@ -207,36 +231,75 @@ public class PersonRepository {
         IDHolder.IDS.add(id);
     }
 
+    /**
+     * Dumps the whole table into a file, deletes it and inserts it back row by row — under the
+     * write lock, so every request arriving meanwhile waits for it.
+     * <p>
+     * Runs on the "backup" scheduler, outside any request, so it is the root of its own trace: the
+     * {@code person.backup-and-reload} span with the dump, the delete and one insert per person
+     * nested underneath. Deliberately inefficient (no batching) to give the Traces view an N+1
+     * shape to find.
+     */
     public void backupAndReload() {
-        writeLock.lock();
-        try {
-            dumpToFile();
-            deleteAll();
-            loadFromFile();
-        } finally {
-            writeLock.unlock();
-        }
+        Tracer.run(SPAN_BACKUP_AND_RELOAD, () -> {
+            Tracer.run(SPAN_BACKUP_WRITE_LOCK, writeLock::lock);
+            try {
+                long dumped = Tracer.call(SPAN_BACKUP_DUMP, this::dumpToFile);
+                deleteAll();
+                long loaded = Tracer.call(SPAN_BACKUP_LOAD, this::loadFromFile);
+                notifyBackupReloaded(dumped, loaded);
+            } finally {
+                writeLock.unlock();
+            }
+        });
+    }
+
+    /**
+     * Emitted inside the backup span, so {@code emit()} records the trace and span it belongs to.
+     */
+    private static void notifyBackupReloaded(long dumped, long loaded) {
+        NotificationEvent notification = new NotificationEvent();
+        notification.type = NOTIFICATION_BACKUP_RELOADED;
+        notification.message = "Person table backed up and reloaded: " + loaded + " of " + dumped + " rows inserted back";
+        notification.severity = (dumped == loaded ? Severity.LOW : Severity.HIGH).name();
+        notification.category = NOTIFICATION_CATEGORY;
+        notification.source = GROUP_LABEL;
+        notification.attributes = EventAttributes.create()
+                .put("dumped", dumped)
+                .put("loaded", loaded)
+                .json();
+        notification.emit();
     }
 
     private void deleteAll() {
         databaseClient.delete(StatementLabel.REMOVE_ALL, REMOVE_ALL, new MapSqlParameterSource());
     }
 
-    private void dumpToFile() {
+    private long dumpToFile() {
+        LongAdder rows = new LongAdder();
         try (BufferedWriter writer = Files.newBufferedWriter(backupFile)) {
-            streamAll(person -> write(writer, convertToString(person)));
+            streamAll(person -> {
+                write(writer, convertToString(person));
+                rows.increment();
+            });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        return rows.sum();
     }
 
-    private void loadFromFile() {
+    private long loadFromFile() {
+        LongAdder rows = new LongAdder();
         try (Stream<String> stream = Files.lines(backupFile)) {
             stream.map(PersonRepository::parseJsonValue)
-                    .forEach(this::insert);
+                    .forEach(person -> {
+                        insert(StatementLabel.BACKUP_LOAD, person);
+                        rows.increment();
+                    });
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+        return rows.sum();
     }
 
     private static Person parseJsonValue(String json) {

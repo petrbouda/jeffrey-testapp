@@ -47,18 +47,14 @@ selfProfile:
   enabled: true
 
 containerPort: 8080
-grpcPort: 9090
 
 service:
   type: ClusterIP
   httpPort: 8080
-  grpcPort: 9090
 
-# Ingress is jeffrey-hub-only — exposes the HTTP API (and optionally gRPC
-# ingestion) so jeffrey-local running on a developer laptop can connect to the
-# in-cluster server. Testapp charts intentionally have no Ingress: those pods
-# only need cluster-internal connectivity to each other and to jeffrey-hub's
-# Service.
+# Ingress is jeffrey-hub-only — exposes the hub's own web UI (the Storage and
+# Scheduler pages). The hub has no API to Microscope: Microscope reads the
+# recording volume itself. Testapp charts intentionally have no Ingress.
 ingress:
   enabled: true
   className: nginx
@@ -68,20 +64,6 @@ ingress:
       paths:
         - path: /
           pathType: ImplementationSpecific
-  tls: []
-
-# Optional separate gRPC ingress (typically uses backend-protocol: GRPC annotation).
-# Enable when jeffrey-local needs to push recordings into the server.
-grpcIngress:
-  enabled: false
-  className: nginx
-  annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: "GRPC"
-  hosts:
-    - host: jeffrey-hub-grpc.local
-      paths:
-        - path: /
-          pathType: Prefix
   tls: []
 
 serviceAccount:

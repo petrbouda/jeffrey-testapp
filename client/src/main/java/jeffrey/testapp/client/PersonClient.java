@@ -49,12 +49,14 @@ public class PersonClient {
     public void removePerson(Long id) {
         client.delete()
                 .uri("/{id}", id)
-                .retrieve();
+                .retrieve()
+                .toBodilessEntity();
     }
 
     public void reloadSnapshot() {
         client.post()
                 .uri("/reload")
-                .retrieve();
+                .retrieve()
+                .toBodilessEntity();
     }
 }

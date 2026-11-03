@@ -1,5 +1,6 @@
 package jeffrey.testapp.server.service;
 
+import cafe.jeffrey.jfr.events.trace.Tracer;
 import jeffrey.testapp.server.Helpers;
 import jeffrey.testapp.server.IDHolder;
 import jeffrey.testapp.server.Person;
@@ -11,7 +12,15 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Picks the random ids from the in-memory {@link IDHolder}: the {@code person.pick-id(s)} span
+ * holds no SQL, compare it with {@link InefficientPersonService}.
+ */
 public class EfficientPersonService implements PersonService {
+
+    private static final String SPAN_PICK_ID = "person.pick-id";
+    private static final String SPAN_PICK_IDS = "person.pick-ids";
+
     private final PersonRepository repository;
     private final NativeMemoryAllocator nativeMemoryAllocator;
 
@@ -23,8 +32,10 @@ public class EfficientPersonService implements PersonService {
     @Override
     public Optional<Person> getRandomPerson() {
         try (var __ = nativeMemoryAllocator.allocate()) {
-            int personIndex = Helpers.generateId(IDHolder.IDS.size());
-            long personId = safeIdLookup(personIndex);
+            long personId = Tracer.call(SPAN_PICK_ID, () -> {
+                int personIndex = Helpers.generateId(IDHolder.IDS.size());
+                return safeIdLookup(personIndex);
+            });
             return repository.findById(personId);
         } catch (IOException e) {
             throw new RuntimeException(e);
@@ -34,10 +45,12 @@ public class EfficientPersonService implements PersonService {
     @Override
     public List<Person> getNPersons(int count) {
         try (var __ = nativeMemoryAllocator.allocate()) {
-            Collection<Integer> indices = Helpers.generateIds(IDHolder.IDS.size(), count);
-            List<Long> personIds = indices.stream()
-                    .map(EfficientPersonService::safeIdLookup)
-                    .toList();
+            List<Long> personIds = Tracer.call(SPAN_PICK_IDS, () -> {
+                Collection<Integer> indices = Helpers.generateIds(IDHolder.IDS.size(), count);
+                return indices.stream()
+                        .map(EfficientPersonService::safeIdLookup)
+                        .toList();
+            });
             return repository.findByIds(personIds);
         } catch (IOException e) {
             throw new RuntimeException(e);
