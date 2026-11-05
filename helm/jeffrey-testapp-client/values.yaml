@@ -15,16 +15,20 @@ fullnameOverride: ""
 # at /app/config/application.properties; activated via SPRING_CONFIG_LOCATION).
 #
 # `base-urls` is comma-separated; ClientApplication.onApplicationEvent splits it
-# and starts one independent load scheduler per URL. The default targets BOTH
-# server modes — install the server chart twice with release names `direct` and
-# `dom` (see README) and these Service names resolve to:
-#   direct-jeffrey-testapp-server (mode=direct, EfficientPersonService)
-#   dom-jeffrey-testapp-server    (mode=dom,    InefficientPersonService)
+# and starts one independent load scheduler per URL, so every server gets the same
+# load. The default targets all five server modes — install the server chart once per
+# mode with the mode as its release name (helm/install.sh does) and these Service names
+# resolve to:
+#   direct-jeffrey-testapp-server     (mode=direct,     EfficientPersonService)
+#   dom-jeffrey-testapp-server        (mode=dom,        InefficientPersonService)
+#   n-plus-one-jeffrey-testapp-server (mode=n-plus-one, NPlusOnePersonService)
+#   lock-jeffrey-testapp-server       (mode=lock,       LockPersonService)
+#   exceptions-jeffrey-testapp-server (mode=exceptions, ExceptionsPersonService)
 applicationProperties: |-
   # Override the image-bundled default of 9090 — chart's containerPort and
   # probes target 8080 to match the server chart.
   server.port=8080
-  base-urls=http://direct-jeffrey-testapp-server:8080,http://dom-jeffrey-testapp-server:8080
+  base-urls=http://direct-jeffrey-testapp-server:8080,http://dom-jeffrey-testapp-server:8080,http://n-plus-one-jeffrey-testapp-server:8080,http://lock-jeffrey-testapp-server:8080,http://exceptions-jeffrey-testapp-server:8080
   load.get-person=20
   load.get-n-person=100
   load.add-person=100

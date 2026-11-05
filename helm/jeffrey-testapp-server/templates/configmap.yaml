@@ -7,4 +7,5 @@ metadata:
 data:
   application.properties: |-
 {{ .Values.applicationProperties | indent 4 }}
-    efficient.mode={{ if eq .Values.mode "direct" }}true{{ else }}false{{ end }}
+    testapp.mode={{ .Values.mode }}
+    efficient.mode={{ if eq .Values.mode "dom" }}false{{ else }}true{{ end }}

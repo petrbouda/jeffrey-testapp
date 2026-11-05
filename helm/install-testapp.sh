@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
-# Install or upgrade the testapp releases (jeffrey-testapp-server in direct + dom
-# modes, plus jeffrey-testapp-client). Assumes the shared volume (jeffrey-volume chart,
+# Install or upgrade the testapp releases (jeffrey-testapp-server in its five modes —
+# direct, dom, n-plus-one, lock, exceptions — plus jeffrey-testapp-client). Assumes the shared volume (jeffrey-volume chart,
 # installed by helm/install.sh) already exists: the pods bind to its jeffrey-pvc claim.
 # Each image carries its own provisioner and async-profiler, so a testapp pod profiles
 # from its first second.
@@ -29,6 +29,9 @@ run() {
 
 run direct                 jeffrey-testapp-server  --set mode=direct   "$@"
 run dom                    jeffrey-testapp-server  --set mode=dom      "$@"
+run n-plus-one             jeffrey-testapp-server  --set mode=n-plus-one "$@"
+run lock                   jeffrey-testapp-server  --set mode=lock     "$@"
+run exceptions             jeffrey-testapp-server  --set mode=exceptions "$@"
 run jeffrey-testapp-client jeffrey-testapp-client                      "$@"
 
 echo

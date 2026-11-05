@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Install or upgrade the full Jeffrey testapp stack (jeffrey-volume +
-# jeffrey-testapp-server x2 modes + jeffrey-testapp-client).
+# jeffrey-testapp-server in five modes + jeffrey-testapp-client).
 #
 # Usage:
 #   helm/install.sh                           # jeffrey-testapp namespace (default, created if missing)
@@ -43,6 +43,9 @@ run() {
 run jeffrey-volume         jeffrey-volume          "${VOLUME_EXTRA[@]+"${VOLUME_EXTRA[@]}"}"  "$@"
 run direct                 jeffrey-testapp-server  --set mode=direct   "$@"
 run dom                    jeffrey-testapp-server  --set mode=dom      "$@"
+run n-plus-one             jeffrey-testapp-server  --set mode=n-plus-one "$@"
+run lock                   jeffrey-testapp-server  --set mode=lock     "$@"
+run exceptions             jeffrey-testapp-server  --set mode=exceptions "$@"
 run jeffrey-testapp-client jeffrey-testapp-client                      "$@"
 
 echo

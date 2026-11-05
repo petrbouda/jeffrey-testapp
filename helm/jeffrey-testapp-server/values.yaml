@@ -1,9 +1,12 @@
 # Default values for jeffrey-testapp-server.
 
-# Service-mode toggle: "direct" (efficient.mode=true, EfficientPersonService) or
-# "dom" (efficient.mode=false, InefficientPersonService). Install both side-by-side:
-#   helm upgrade --install jeffrey-testapp-direct-server  helm/jeffrey-testapp-server --set mode=direct
-#   helm upgrade --install jeffrey-testapp-dom-server     helm/jeffrey-testapp-server --set mode=dom
+# Service mode, rendered as testapp.mode: "direct" (EfficientPersonService, the baseline), "dom"
+# (InefficientPersonService: a COUNT before every pick, a JSON tree per response), or the baseline with one
+# planted problem — "n-plus-one" (one find_by_id per person of GET /persons/{count}), "lock" (every lookup
+# behind one monitor held across the database call) or "exceptions" (a NumberFormatException per served
+# person). Install them side by side, one release per mode (helm/install.sh does):
+#   helm upgrade --install direct      helm/jeffrey-testapp-server --set mode=direct
+#   helm upgrade --install n-plus-one  helm/jeffrey-testapp-server --set mode=n-plus-one
 mode: dom
 
 replicaCount: 1
@@ -19,8 +22,8 @@ fullnameOverride: ""
 
 # Spring application.properties overrides (rendered into a ConfigMap and mounted
 # at /app/config/application.properties; activated via SPRING_CONFIG_LOCATION).
-# `efficient.mode` is rendered separately from `mode` above and appended to this block
-# at templating time — do NOT set it here.
+# `testapp.mode` and `efficient.mode` are rendered from `mode` above and appended to this block
+# at templating time — do NOT set them here.
 applicationProperties: |-
   server.port=8080
   database.file=/var/lib/jeffrey/testapp.db

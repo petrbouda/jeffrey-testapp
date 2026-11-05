@@ -19,7 +19,7 @@ Both apps depend on `jeffrey-events`, `jeffrey-tracing-spring-boot-starter` and 
 
 **Server** (`jeffrey-testapp-server`):
 
-- **Traces** — the starter's servlet filter records every request as `jeffrey.HttpServerExchange` and opens it as the root span, named by the matched route (`GET /persons/{count}`). Query and path parameters are captured, and every request span carries a `testapp.mode` attribute (`direct` | `dom`), so the two modes are a facet in Traces → Attributes.
+- **Traces** — the starter's servlet filter records every request as `jeffrey.HttpServerExchange` and opens it as the root span, named by the matched route (`GET /persons/{count}`). Query and path parameters are captured, and every request span carries a `testapp.mode` attribute (`direct`, `dom`, `n-plus-one`, `lock` or `exceptions`), so the modes are a facet in Traces → Attributes.
 - **Hand-written spans** (`Tracer`) between the request and its SQL:
   - `person.pick-id` / `person.pick-ids` — in `dom` mode they hold an extra `count_query` statement, in `direct` mode none; same name, so the two line up.
   - `person.redact-opinions` — the regex over the loaded rows.
@@ -38,7 +38,7 @@ mvn package -DskipTests
 ```
 
 ```bash
-java -XX:StartFlightRecording=filename=server.jfr,settings=profile -jar server/target/runner.jar --efficient.mode=false --backup.interval=1m
+java -XX:StartFlightRecording=filename=server.jfr,settings=profile -jar server/target/runner.jar --testapp.mode=dom --backup.interval=1m   # or direct, n-plus-one, lock, exceptions
 ```
 
 ```bash
@@ -50,18 +50,23 @@ Check the spans before using a recording: `jfr print --events "jeffrey.*" server
 ## Kubernetes / Helm
 
 ```bash
-helm/install.sh      # install/upgrade jeffrey-volume + testapp-server (direct + dom) + testapp-client into the jeffrey-testapp namespace
+helm/install.sh      # install/upgrade jeffrey-volume + testapp-server (one release per mode) + testapp-client into the jeffrey-testapp namespace
 helm/uninstall.sh    # tear them all down (reverse order; PV/PVC left to the cluster's reclaim policy)
 ```
 
 Deployed releases (all in the `jeffrey-testapp` namespace):
 
 - **`jeffrey-volume`** — the shared recording volume: the `jeffrey-pvc` claim the testapp pods write their recordings into, plus a hostPath PV at `/tmp/jeffrey-data` on OrbStack, where there is no RWX provisioner.
-- **`direct`** (chart `jeffrey-testapp-server`, `mode=direct`) — SQLite-backed REST app running the efficient `PersonService` (`efficient.mode=true`).
-- **`dom`** (chart `jeffrey-testapp-server`, `mode=dom`) — same app running the inefficient `PersonService` (`efficient.mode=false`); deployed alongside `direct` so a single workload generates two distinct profiles to compare.
-- **`jeffrey-testapp-client`** — single load generator that drives both testapp servers concurrently (each base URL gets its own scheduler).
+- **`direct`** (chart `jeffrey-testapp-server`, `mode=direct`) — SQLite-backed REST app running the efficient `PersonService`: the baseline.
+- **`dom`** (`mode=dom`) — the inefficient `PersonService`: a `COUNT` before every random pick (inside `person.pick-id(s)`) and every response built as a JSON tree (`person.to-json-tree`).
+- **`n-plus-one`** (`mode=n-plus-one`) — the baseline, but `GET /persons/{count}` loads its persons one `find_by_id` statement each inside `person.load-each` (`NPlusOnePersonService`), where the baseline runs one `find_all_by_ids`.
+- **`lock`** (`mode=lock`) — the baseline, but every lookup runs in a `synchronized` method of the one `LockPersonService`, so its monitor is held across the database call and concurrent requests queue on it (`jdk.JavaMonitorEnter` on `LockPersonService`).
+- **`exceptions`** (`mode=exceptions`) — the baseline, but every served person's phone is normalized by trying `Long.parseLong` and catching the `NumberFormatException` (`ExceptionsPersonService`, `person.normalize-phones`): the stored phones are formatted, so every person throws one.
+- **`jeffrey-testapp-client`** — single load generator that drives every testapp server concurrently (each base URL gets its own scheduler, so each gets the same load).
 
-Each pod's provisioner config is `helm/<chart>/jeffrey-base.conf` (`tracing`, perf counters, heap dump on crash, JVM options). The project name is set by each Deployment as `JEFFREY_PROJECT_NAME` (`direct-jeffrey-testapp-server`, `dom-jeffrey-testapp-server`, `jeffrey-testapp-client`), because jeffrey-jib bakes the artifactId into the image under that variable and an environment variable wins over the config file.
+The mode is `testapp.mode` (the chart renders it from `mode`); without it, `efficient.mode` picks `direct` (true) or `dom` (false) as before. Every mode but `dom` is `direct` with one problem planted, so a recording of a mode set against a `direct` recording taken under the same load shows that problem alone.
+
+Each pod's provisioner config is `helm/<chart>/jeffrey-base.conf` (`tracing`, perf counters, heap dump on crash, JVM options). The project name is set by each Deployment as `JEFFREY_PROJECT_NAME` (`<mode>-jeffrey-testapp-server` — `direct-…`, `dom-…`, `n-plus-one-…`, `lock-…`, `exceptions-…` — and `jeffrey-testapp-client`), because jeffrey-jib bakes the artifactId into the image under that variable and an environment variable wins over the config file.
 
 ### Reading the recordings
 
